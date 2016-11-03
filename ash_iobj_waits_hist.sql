@@ -5,7 +5,7 @@
 -- by Igor Usoltsev
 --
 
-set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF
+set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF linesize 2000
 
 col SQL_PROCESS for a13
 col "event(waits:requests:blocks)" for a300

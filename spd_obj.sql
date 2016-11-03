@@ -4,12 +4,12 @@
 --                      ^[object_owner] ^object_name ^state
 --
 
-set feedback on 0 heading on timi off pages 200 lines 500 echo off  VERIFY OFF
+set feedback 1 heading on timi off pages 200 lines 500 echo off  VERIFY OFF
 
 col INT_STATE for a16
 col REDUNDANT for a9
 col OWNER for a30
-col TABLE_LIST  for a100
+col TAB_COL_LIST  for a100
 col COLUMN_LIST for a100
 col EQ_PRED_ONLY for a13
 col SIMPLE_COL_PRED_ONLY for a21
@@ -44,7 +44,8 @@ select --+ rule
  extractvalue(fo.notes, '/obj_note/equality_predicates_only')        as eq_pred_only,
  extractvalue(fo.notes, '/obj_note/simple_column_predicates_only')   as simple_col_pred_only,
  extractvalue(fo.notes, '/obj_note/index_access_by_join_predicates') as ind_access_by_join_pred,
- extractvalue(fo.notes, '/obj_note/filter_on_joining_object')        as filter_on_join_obj
+ extractvalue(fo.notes, '/obj_note/filter_on_joining_object')        as filter_on_join_obj,
+ ft.intcol#
   from sys."_BASE_OPT_DIRECTIVE" d
   join sys."_BASE_OPT_FINDING" f on f.f_id = d.f_id
   join sys."_BASE_OPT_FINDING_OBJ" fo on f.f_id = fo.f_id
@@ -78,9 +79,9 @@ select
        reason,
        tab_cnt,
        redundant,
---       listagg(owner || '.' || table_name, ', ') within group(order by table_name, column_name) as table_list,
-       substr(regexp_replace(listagg(owner || '.' || table_name, ',') within group(order by table_name),'([^,]+)(,\1)+', '\1'),1,100) as table_list,
-       substr(listagg(column_name, ', ') within group(order by column_name),1,100) as column_list,
+--       dbms_lob.substr( to_clob( listagg(owner || '.' || table_name, ',') within group(order by table_name)), 100) as table_list,
+dbms_lob.substr( dbms_xmlgen.convert(rtrim(xmlagg(xmlelement(e, '#'|| intcol# || ' ' || owner || '.' || table_name || '.' || column_name, '; ').extract('//text()') order by intcol#, table_name).getClobVal(), '; '), 1), 500) as tab_col_list,
+--       dbms_lob.substr( to_clob( listagg ( column_name, ', ') within group(order by column_name)), 100) as column_list,
        max(eq_pred_only) as eq_pred_only,
        max(simple_col_pred_only) as simple_col_pred_only,
        max(ind_access_by_join_pred) as ind_access_by_join_pred,

@@ -37,6 +37,8 @@ select LEVEL as LVL,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
 In_Parse,
+sql_adaptive_plan_resolved,
+sql_child_number,
 --machine,
 --program,
 --       p2,
@@ -89,6 +91,8 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           wait_class,
         case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
              else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+sql_adaptive_plan_resolved,
+sql_child_number,
 In_Parse,
 --machine,
 --program,

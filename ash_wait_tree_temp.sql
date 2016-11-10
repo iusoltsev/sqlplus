@@ -18,7 +18,7 @@ col SQL_ID for a13
 col SQL_OPNAME for a20
 col CLIENT_ID for a40
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from ash_201610041059
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from bo.ASH_20161104
  s
  &3)
 select --decode(LEVEL,1,'Waiter','Blocker#'||to_char(LEVEL-1)) as LVL,
@@ -57,7 +57,8 @@ select --decode(LEVEL,1,'Waiter','Blocker#'||to_char(LEVEL-1)) as LVL,
  start with &&1
 connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
                     --abs(ash.stime - prior ash.stime) <= 1/86400)
-                    ash.stime           = prior ash.stime)
+                    --ash.stime           = prior ash.stime)
+                    abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) < 1/2)
                 and ash.SESSION_ID = prior ash.BLOCKING_SESSION
                 and ash.inst_id = prior ash.BLOCKING_inst_id
  group by --decode(LEVEL,1,'Waiter','Blocker#'||to_char(LEVEL-1)),

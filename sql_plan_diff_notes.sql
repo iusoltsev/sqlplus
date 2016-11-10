@@ -47,7 +47,7 @@ SELECT /*+ opt_param('parallel_execution_enabled', 'false') */
    db_version:      ' || extractvalue(xmlval, '/*/info[@type = "db_version"]')||'
    plan_hash_full:  ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_full"]')||' 
    plan_hash:       ' || extractvalue(xmlval, '/*/info[@type = "plan_hash"]')||'
-   plan_hash_2:     ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_2"]')		 as phv_&&2,
+   plan_hash_2:     ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_2"]')		 as phv_2362884641,
 '
    sql_profile:     ' || extractvalue(xmlval2, '/*/info[@type = "sql_profile"]')||'
    sql_patch:       ' || extractvalue(xmlval2, '/*/info[@type = "sql_patch"]')||'
@@ -76,31 +76,39 @@ SELECT /*+ opt_param('parallel_execution_enabled', 'false') */
    db_version:      ' || extractvalue(xmlval2, '/*/info[@type = "db_version"]')||'
    plan_hash_full:  ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_full"]')||' 
    plan_hash:       ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash"]')||'
-   plan_hash_2:     ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_2"]')	 as phv_&&4
+   plan_hash_2:     ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_2"]')	 as phv_2045682565
 from
  (select xmltype(other_xml) xmlval,
          xmltype(other_xml2) xmlval2
     from
-   (select nvl(s1.other_xml, p1.other_xml) other_xml
-    from dba_hist_sql_plan p1
-    full join gv$sql_plan s1
-      on s1.sql_id = '&&1'
-     and s1.plan_hash_value = &&2
-     and s1.other_xml is not null
-     and (s1.inst_id, s1.child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&1' and plan_hash_value = &&2 and rownum <= 1)
-	 where p1.sql_id = '&&1'
-	   and p1.plan_hash_value = &&2
-	   and p1.other_xml is not null) v1,
-   (select nvl(s2.other_xml, p2.other_xml) other_xml2
-    from dba_hist_sql_plan p2
-	  full join gv$sql_plan s2
-	    on s2.sql_id = '&&3'
-	   and s2.plan_hash_value = nvl('&&4', 0)
-	   and s2.other_xml is not null
-	   and (s2.inst_id, s2.child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4', 0) and rownum <= 1)
-	    where p2.sql_id = '&&3'
-	   and p2.plan_hash_value = nvl('&&4', 0)
-	   and p2.other_xml is not null) v2)
+   (select other_xml as other_xml
+                   from dba_hist_sql_plan
+                  where sql_id = '&&1'
+                    and plan_hash_value = nvl('&&2',0)
+                    and other_xml is not null
+                    and not exists (select 1 from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0) and other_xml is not null)
+    union all
+    select other_xml
+                   from gv$sql_plan
+                  where sql_id = '&&1'
+                    and plan_hash_value = nvl('&&2',0)
+                    and other_xml is not null
+--                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
+                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2', 0) and rownum <= 1)) v1,
+   (select other_xml as other_xml2
+                   from dba_hist_sql_plan
+                  where sql_id = '&&3'
+                    and plan_hash_value = nvl('&&4',0)
+                    and other_xml is not null
+                    and not exists (select 1 from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0) and other_xml is not null)
+    union all
+    select other_xml
+                   from gv$sql_plan
+                  where sql_id = '&&3'
+                    and plan_hash_value = nvl('&&4',0)
+                    and other_xml is not null
+--                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
+                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4', 0) and rownum <= 1)) v2)
 /
 --@@sql_plan_diff_outl  &&1 &&2 &&3 &&4 &&5
 @@sql_plan_diff_outl_v2  &&1 &&2 &&3 &&4 &&5

@@ -125,6 +125,6 @@ select *
            and sql_exec_id > 0
          group by inst_id, sql_id, sql_child_number, sql_exec_id, sql_plan_hash_value
          order by 6 desc)
- where rownum <= 25
+ where rownum <= 5
 /
 set feedback on VERIFY ON

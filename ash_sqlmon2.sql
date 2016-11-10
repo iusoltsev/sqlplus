@@ -3,7 +3,7 @@
 -- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')"
 -- 
 
-set feedback off heading on timi off pages 500 lines 500 echo off  VERIFY OFF
+set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
 
 unset &1
 unset &2

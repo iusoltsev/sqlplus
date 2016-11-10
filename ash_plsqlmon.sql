@@ -1,6 +1,6 @@
 --
 -- PL/SQL trace with recursive SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_plsqlmon 5t39uchjqpyfm
+-- Usage: SQL> @ash_plsqlmon c8cx3cxf286d7
 --                           ^[top_level_]sql_id
 -- 
 

@@ -17,7 +17,7 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from ASH_201610140500 s &3
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from bo.ASH_20161104 s &3
 --		where sample_time > sysdate-1/24
 		)
 select LEVEL as LVL,

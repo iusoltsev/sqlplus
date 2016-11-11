@@ -1,10 +1,13 @@
+col KGLNAOBJ for a100
+col SQL_TEXT for a100
+
 select --+ ordered
        l.kgllkhdl     as HANDLER,
        l.kgllktype,
        w.kglhdnsd     as NAMESP,
        w.kglobtyd,
        w.kglnaown,
-       w.kglnaobj,
+--       dbms_lob.substr(w.kglnaobj,100) as kglnaobj,
        decode(l.kgllkmod, 0, 'None', 1, 'Null', 2, 'Share', 3, 'Exclusive', 'Unknown') mode_held,
        decode(l.kgllkreq, 0, 'None', 1, 'Null', 2, 'Share', 3, 'Exclusive', 'Unknown') mode_req,
        to_char(s.seconds_in_wait) as secs_in_wait,
@@ -16,7 +19,7 @@ select --+ ordered
        s.saddr,
        s.program,
        a.sql_id,
-       substr(a.sql_text,1,100) as sql_text
+       substr(nvl(a.sql_text,kglnaobj),1,100) as sql_text
   from (select * from v$session where sid = &1) s
        join dba_kgllock l    on l.kgllkuse = s.saddr
        left join x$kglob w   on l.kgllkhdl = w.kglhdadr

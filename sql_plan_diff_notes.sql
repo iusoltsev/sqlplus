@@ -47,7 +47,7 @@ SELECT /*+ opt_param('parallel_execution_enabled', 'false') */
    db_version:      ' || extractvalue(xmlval, '/*/info[@type = "db_version"]')||'
    plan_hash_full:  ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_full"]')||' 
    plan_hash:       ' || extractvalue(xmlval, '/*/info[@type = "plan_hash"]')||'
-   plan_hash_2:     ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_2"]')		 as phv_2362884641,
+   plan_hash_2:     ' || extractvalue(xmlval, '/*/info[@type = "plan_hash_2"]')		 as phv_&&2,
 '
    sql_profile:     ' || extractvalue(xmlval2, '/*/info[@type = "sql_profile"]')||'
    sql_patch:       ' || extractvalue(xmlval2, '/*/info[@type = "sql_patch"]')||'
@@ -76,7 +76,7 @@ SELECT /*+ opt_param('parallel_execution_enabled', 'false') */
    db_version:      ' || extractvalue(xmlval2, '/*/info[@type = "db_version"]')||'
    plan_hash_full:  ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_full"]')||' 
    plan_hash:       ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash"]')||'
-   plan_hash_2:     ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_2"]')	 as phv_2045682565
+   plan_hash_2:     ' || extractvalue(xmlval2, '/*/info[@type = "plan_hash_2"]')	 as phv_&&4
 from
  (select xmltype(other_xml) xmlval,
          xmltype(other_xml2) xmlval2

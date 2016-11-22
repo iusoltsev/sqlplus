@@ -14,6 +14,8 @@ col RESIZEABLE format a10
 col DESCRIPTION format a60
 col Status format a12
 
+@@sysdate
+
 select decode(value,0,'ASMM:off','ASMM:on') as ASMM_Status
 from v$parameter
 where name in 'sga_target'

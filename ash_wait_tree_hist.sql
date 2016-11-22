@@ -27,6 +27,7 @@ select LEVEL as LVL,
 --       nvl2(ash.XID,'xid',''),
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
 --sql_plan_operation,
+--p1,p2,p3,
        count(*) as WAITS_COUNT,
        count(distinct session_id) as SESS_COUNT,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS
@@ -53,6 +54,7 @@ connect by nocycle (abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sam
 --       ash.SQL_OPNAME,
 --       nvl2(ash.XID,'xid',''),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue')
+--,p1,p2,p3
 --, sql_plan_operation
  order by instance_number, LEVEL, count(*) desc
 /

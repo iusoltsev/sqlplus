@@ -43,7 +43,7 @@ from
                   where sql_id = '&&1'
                     and plan_hash_value = nvl('&&2',0)
                     and other_xml is not null
-/*                    and not exists (select 1 from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0) and other_xml is not null)
+                    and not exists (select 1 from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0) and other_xml is not null)
     union all
     select other_xml
                    from gv$sql_plan
@@ -51,7 +51,6 @@ from
                     and plan_hash_value = nvl('&&2',0)
                     and other_xml is not null
                     and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2', 0) and rownum <= 1)
-*/
    )
 )
 /

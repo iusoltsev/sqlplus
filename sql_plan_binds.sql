@@ -1,5 +1,6 @@
 --
 -- @sql_plan_dep3 4hnjr40pspnzk 2528178990
+-- DISPLAY_RAW function from Greg Rahn http://structureddata.org/2007/10/16/how-to-display-high_valuelow_value-columns-from-user_tab_col_statistics/
 --
 
 set feedback on heading on timi off pages 200 lines 500 echo off  VERIFY OFF
@@ -48,7 +49,7 @@ select sql_id,
        EXTRACTVALUE(VALUE(D), '/bind/@mxl') as MAXLENGTH,
        EXTRACTVALUE(VALUE(D), '/bind/@captured') as CAPTURED,
        EXTRACTVALUE(VALUE(D), '/bind') as VALUE,
-       display_raw(EXTRACTVALUE(VALUE(D), '/bind'), -- DISPLAY_RAW function from Greg Rahn http://structureddata.org/2007/10/16/how-to-display-high_valuelow_value-columns-from-user_tab_col_statistics/
+       display_raw(EXTRACTVALUE(VALUE(D), '/bind'),
                           decode(EXTRACTVALUE(VALUE(D), '/bind/@dty'),
                                  1,  'VARCHAR2',
                                  2,  'NUMBER',

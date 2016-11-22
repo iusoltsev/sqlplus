@@ -31,7 +31,7 @@ select --decode(LEVEL,1,'Waiter','Blocker#'||to_char(LEVEL-1)) as LVL,
 --nvl2(sql_id,'*','') as sql_id,
 --nvl2(client_id,'*','') as client_id,
 --       blocking_inst_id as BLOCK_INST,
---sql_opcode,
+sql_opname,
 --       ash.SQL_ID,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
 --       ash.SQL_OPNAME,
@@ -62,7 +62,7 @@ connect by nocycle  --(ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           LEVEL,
           inst_id,
 --          blocking_inst_id,
---sql_opcode,
+sql_opname,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')),
 				case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(FOREGROUND)'
 					when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'

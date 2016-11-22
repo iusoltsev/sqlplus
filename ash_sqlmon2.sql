@@ -175,9 +175,10 @@ select   sql_id,
          nvl(parent_id, -1) as parent_id
     from gv$sql_plan
 -- about v$sql_plan.child_number multi
-   where (sql_id, plan_hash_value, child_number, inst_id) in (select ash.sql_id, sql_plan_hash_value, min(child_number), min(inst_id) from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value group by ash.sql_id, ash.sql_plan_hash_value
+   where (sql_id, plan_hash_value, child_number, inst_id) in
+                                                    (select ash.sql_id, sql_plan_hash_value, child_number, inst_id from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and rownum <=1
                                                      union
-                                                     select ash_recrsv.sql_id, sql_plan_hash_value, min(child_number), min(inst_id) from ash_recrsv join gv$sql_plan p on ash_recrsv.sql_id = p.sql_id and ash_recrsv.sql_plan_hash_value = p.plan_hash_value group by ash_recrsv.sql_id, sql_plan_hash_value)
+                                                     select ash_recrsv.sql_id, sql_plan_hash_value, child_number, inst_id from ash_recrsv join gv$sql_plan p on ash_recrsv.sql_id = p.sql_id and ash_recrsv.sql_plan_hash_value = p.plan_hash_value  and rownum <=1)
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,

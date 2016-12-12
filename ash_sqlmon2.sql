@@ -174,11 +174,15 @@ select   sql_id,
          temp_space,
          nvl(parent_id, -1) as parent_id
     from gv$sql_plan
--- about v$sql_plan.child_number multi
+-- about v$sql_plan.child_number multi and multi/adaptive PHV
    where (sql_id, plan_hash_value, child_number, inst_id) in
-                                                    (select ash.sql_id, sql_plan_hash_value, child_number, inst_id from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and rownum <=1
-                                                     union
-                                                     select ash_recrsv.sql_id, sql_plan_hash_value, child_number, inst_id from ash_recrsv join gv$sql_plan p on ash_recrsv.sql_id = p.sql_id and ash_recrsv.sql_plan_hash_value = p.plan_hash_value  and rownum <=1)
+            (select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1
+             union all
+             select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash_recrsv ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1)
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,
@@ -223,8 +227,8 @@ UNION ALL
 select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but execution didn't start yet, sql_exec_id is null
        sql_id,              
        sql_plan_hash_value as plan_hash_value,
---       ash_stat.sql_plan_line_id as ID,
-       -1 as ID,
+       ash_stat.sql_plan_line_id as ID,
+--       -1 as ID,
        'sql_plan_hash_value > 0; sql_exec_id is null' as PLAN_OPERATION,
        null as QBLOCK_NAME,
        null as object_alias,

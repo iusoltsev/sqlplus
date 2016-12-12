@@ -1,4 +1,4 @@
-set feedback off
+set feedback off lines 200
 
 col INST_ID for a7
 col INSTANCE_NAME for a20

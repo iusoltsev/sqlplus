@@ -3,7 +3,7 @@
 -- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')"
 -- 
 
-set feedback off heading on timi off pages 500 lines 500 echo off  VERIFY OFF
+set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
 
 unset &1
 unset &2
@@ -19,7 +19,8 @@ col OBJECT_NAME for a30
 col QBLOCK_NAME for a15
 
 with
- ash0 as (select * from ASH_201609191732 &4),
+ ash0 as (select * from scott.ASH_201611241351 -- gv$active_session_history
+          &4),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,
@@ -174,12 +175,15 @@ select   sql_id,
          temp_space,
          nvl(parent_id, -1) as parent_id
     from gv$sql_plan
--- about v$sql_plan.child_number multi
-   where (sql_id, plan_hash_value, child_number, inst_id) in (select ash.sql_id, sql_plan_hash_value, min(child_number), min(inst_id) from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value group by ash.sql_id, ash.sql_plan_hash_value
-                                                     union
-                                                     select ash_recrsv.sql_id, sql_plan_hash_value, min(child_number), min(inst_id) from ash_recrsv join gv$sql_plan p on ash_recrsv.sql_id = p.sql_id and ash_recrsv.sql_plan_hash_value = p.plan_hash_value group by ash_recrsv.sql_id, sql_plan_hash_value)
---   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash union select sql_id, sql_plan_hash_value from ash_recrsv)
---                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '671hgg4ck0dpx' and plan_hash_value = nvl('3479296038',0))
+-- about v$sql_plan.child_number multi and multi/adaptive PHV
+   where (sql_id, plan_hash_value, child_number, inst_id) in
+            (select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1
+             union all
+             select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash_recrsv ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1)
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,

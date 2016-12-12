@@ -16,7 +16,7 @@ select
     use_feedback_stats          as "FEEDBACK_STATS",
     load_optimizer_stats        as "OPT_STATS",
     s.IS_REOPTIMIZABLE          as "REOPT",
---    s.IS_RESOLVED_ADAPTIVE_PLAN as "ADAPT",
+    s.IS_RESOLVED_ADAPTIVE_PLAN as "ADAPT",
 case when s.IS_RESOLVED_ADAPTIVE_PLAN is null then 'N' when s.IS_RESOLVED_ADAPTIVE_PLAN = 'N' then '' else 'Y' end as "ADAPT",
     bind_equiv_failure          as "BIND_EQ_FAIL",
     bind_mismatch,
@@ -35,7 +35,7 @@ case when s.IS_RESOLVED_ADAPTIVE_PLAN is null then 'N' when s.IS_RESOLVED_ADAPTI
     dbms_lob.substr(reason, dbms_lob.instr(reason, '</reason>', 1, 3) - dbms_lob.instr(reason, '<reason>', 1, 3) - 8, dbms_lob.instr(reason, '<reason>', 1, 3) + 8) reason#3,
 */
     REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 1, NULL, 2) reason#1,
-    REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 2, NULL, 2) reason#2,
+--    REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 2, NULL, 2) reason#2,
 --    REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 3, NULL, 2) reason#3,
 --    REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 4, NULL, 2) reason#4,
     trim(dbms_lob.substr(REGEXP_SUBSTR ( reason, '<(_fix_control_key)>([^<]+)</\1>', 1, 1, NULL, 2), 100)) fix_control#1,
@@ -60,7 +60,7 @@ s.SQL_PROFILE
     use_feedback_stats,
     load_optimizer_stats,
     s.IS_REOPTIMIZABLE,
---    s.IS_RESOLVED_ADAPTIVE_PLAN,
+    s.IS_RESOLVED_ADAPTIVE_PLAN,
 case when s.IS_RESOLVED_ADAPTIVE_PLAN is null then 'N' when s.IS_RESOLVED_ADAPTIVE_PLAN = 'N' then '' else 'Y' end,
     bind_equiv_failure,
     bind_mismatch,
@@ -73,7 +73,7 @@ case when s.IS_RESOLVED_ADAPTIVE_PLAN is null then 'N' when s.IS_RESOLVED_ADAPTI
 --    EXPLAIN_PLAN_CURSOR,
 --    ROLL_INVALID_MISMATCH,
     REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 1, NULL, 2)
-    ,REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 2, NULL, 2)
+--    ,REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 2, NULL, 2)
 --    ,REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 3, NULL, 2)
 --    ,REGEXP_SUBSTR ( dbms_lob.substr(reason,4000), '<(reason)>([^<]+)</\1>', 1, 4, NULL, 2)
     ,trim(dbms_lob.substr(REGEXP_SUBSTR ( reason, '<(_fix_control_key)>([^<]+)</\1>', 1, 1, NULL, 2), 100))

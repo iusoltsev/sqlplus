@@ -17,7 +17,7 @@ with OBJLIST as
          subobject_name as partition_name
     from dba_objects
    where owner = upper(nvl('&&1', 'user'))
-     and object_name in ('&&2')
+     and object_name in upper(('&&2'))
      and (subobject_name in ('&&3') or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
      and DATA_OBJECT_ID is not null)
 select 'BUFFER CACHE' as AREA,
@@ -35,7 +35,7 @@ select 'DATABASE',
        '' as BH_COUNT
 from dba_segments
  where owner = upper(nvl('&&1', 'user'))
- and segment_name in ('&&2')
+ and segment_name in upper(('&&2'))
  and (partition_name in ('&&3') or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
 --order by partition_name
 union all

@@ -10,7 +10,7 @@ col BLOCKING_TREE for a20
 col SQL_TEXT for a100
 col EVENT for a40 head "Event name"
 col USERNAME for a40
-col CLIENT_IDENTIFIER for a30
+col USERNAME for a60
 col P1TEXT for a40
 col P2TEXT for a40
 col P3TEXT for a40
@@ -50,7 +50,7 @@ select--+ opt_param('_connect_by_use_union_all' 'false')
  LPAD(' ', (LEVEL - 1) * 2) || 'INST#' || s.inst_id || ' SID#' || sid as BLOCKING_TREE,
 -- LPAD(' ', (LEVEL - 1) * 2) || REGEXP_SUBSTR(p.program,'[^@.]+',1,2) || '# Alter system kill session '''||sid||','||S.SERIAL#||''';' as BLOCKING_TREE,
  s.program,
- substr(s.USERNAME || ' ' || s.CLIENT_IDENTIFIER,1,40) as USERNAME,
+ substr(s.USERNAME || ' ' || s.CLIENT_IDENTIFIER,1,60) as USERNAME,
  EVENT,
  object_type || ' ' || owner ||'.'|| object_name req_object,
  last_call_et,

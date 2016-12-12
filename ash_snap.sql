@@ -14,7 +14,7 @@ begin
   select version into vers from v$instance;
   if vers like '12%' then
   execute immediate '
-  create table ASH_' || sdate ||' tablespace '|| def_ts ||' as
+  create table scott.ASH_' || sdate ||' tablespace '|| def_ts ||' as
   select s.plan_hash_value      as SQL_PHV,
          s.full_plan_hash_value as SQL_FPHV,
          s.last_load_time as SQL_last_load_time,
@@ -23,11 +23,11 @@ begin
     from gv$active_session_history ash
     left join gv$sql s on ash.sql_id = s.sql_id and ash.sql_child_number = s.child_number and ash.inst_id = s.inst_id';
   else execute immediate '
-  create table ASH_' || sdate ||' tablespace '|| def_ts ||' as
+  create table scott.ASH_' || sdate ||' tablespace '|| def_ts ||' as
   select ash.* from gv$active_session_history ash';
   end if;
   dbms_output.put_line(' --- ');
-  dbms_output.put_line(' --- The Snap Table ASH_' || sdate ||' was successfully created in tablespace '|| def_ts);
+  dbms_output.put_line(' --- The Snap Table SCOTT.ASH_' || sdate ||' was successfully created in tablespace '|| def_ts);
   dbms_output.put_line(' --- ');
 end;
 /

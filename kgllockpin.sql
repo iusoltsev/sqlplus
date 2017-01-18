@@ -82,5 +82,5 @@ select --+ ordered
        join dba_kgllock l  on l.kgllkhdl = b.p1raw -- this is LOCAL view ONLY
        left join x$kglob w on l.kgllkhdl = w.kglhdadr
 /
-@@mutex_waits
+rem @@mutex_waits
 set feedback on VERIFY ON timi on

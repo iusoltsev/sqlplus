@@ -9,8 +9,6 @@ DECLARE
   lv_hint SYS.SQLPROF_ATTR := SYS.SQLPROF_ATTR();
   n_hint  number := 1;
   v_sql_text CLOB;
-  l_pos number;
-  l_hint varchar2(4000);
 BEGIN
   begin
     select sql_text into v_sql_text from dba_hist_sqltext where sql_id = '&&1';
@@ -37,22 +35,9 @@ BEGIN
                                 and plan_hash_value = nvl('&&2', plan_hash_value)
                                 and trim(OTHER_XML) is not null))
     loop
-      l_hint := hint_rec.hint;
-      WHILE NVL(LENGTH(l_hint), 0) > 0 -- Running "coe_xfr_sql_profile.sql" Script (Shipped with SQLT) Raises "ORA-06502: PL/SQL: numeric or value error" (Doc ID 2043600.1)
-      LOOP                             -- correction from carlos.sierra@oracle.com
-        IF LENGTH(l_hint) <= 500 THEN
-          lv_hint.EXTEND;
-          lv_hint(n_hint) := l_hint;
-          l_hint := NULL;
-          n_hint := n_hint + 1;
-        ELSE
-          l_pos := INSTR(SUBSTR(l_hint, 1, 500), ' ', -1);
-          lv_hint.EXTEND;
-          lv_hint(n_hint) := SUBSTR(l_hint, 1, l_pos);
-          l_hint := '   '||SUBSTR(l_hint, l_pos);
-          n_hint := n_hint + 1;
-        END IF;
-      END LOOP;
+      lv_hint.EXTEND;
+      lv_hint(n_hint) := hint_rec.hint;
+      n_hint := n_hint + 1;
     end loop;
     dbms_sqltune.drop_sql_profile  (name        => '&&3', ignore => TRUE);
     dbms_sqltune.import_sql_profile(sql_text    => v_sql_text,

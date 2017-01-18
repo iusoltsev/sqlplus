@@ -29,8 +29,8 @@ with
          max(sample_time)            as MAX_SQL_EXEC_TIME
     from ash0
    where sql_id = '&&1'
-     and NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0))
-     and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+     and (NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0)) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0)         = nvl('&&3', NVL(sql_exec_id, 0))         or nvl('&&3',1) = 0)
    group by nvl(qc_session_id, session_id), session_id, session_serial#, sql_id, sql_plan_hash_value, sql_exec_id)
 , ash1 as (select sample_time,
                  session_id,
@@ -46,8 +46,9 @@ with
                  sum(pga_allocated)        over (partition by sample_id) as pga_allocated        -- --//--
             from ash0
            where sql_id              = '&&1'                                -- direct SQL exec ONLY
-             and sql_plan_hash_value = nvl('&&2', sql_plan_hash_value)
-             and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)))
+             and (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+             and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+          )
 , ash as (                               -- ASH part, consisting of direct SQL exec ONLy
   select count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
          0 as plsql_entry_object_id,     -- important for recrsv queries only
@@ -405,7 +406,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        ' ash rows were fixed from ' || to_char(min(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') || ' to ' || to_char(max(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') as WAIT_PROFILE
   from ash0
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
-         sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) and
-         NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
 /
 set feedback on VERIFY ON timi on

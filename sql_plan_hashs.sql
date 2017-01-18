@@ -31,5 +31,6 @@ select SRC,
        to_char(TIMESTAMP,'dd.mm.yyyy hh24:mi:ss') as TIMESTAMP
   from plan_hashs
  where full_plan_hash_value = nvl('&2', full_plan_hash_value)
-    or plan_hash_value = nvl('&3', plan_hash_value)
+   and plan_hash_value = nvl('&3', plan_hash_value)
+order by 3, 4
 /

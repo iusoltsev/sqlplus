@@ -1,6 +1,6 @@
 --
 -- ASH I/O waits
--- Usage: SQL> @ash_io_waits [waits|reqs|blocks] [10]         "where sample_time > sysdate - 1/24"
+-- Usage: SQL> @ash_io_waits_temp [waits|reqs|blocks] [10]         "where sample_time > sysdate - 1/24"
 --                            ^sort order         ^top N rows  ^ash filter
 -- by Igor Usoltsev
 --
@@ -18,10 +18,10 @@ col t0 for 999
 col MIN_SAMPLE_TIME for a22
 col MAX_SAMPLE_TIME for a22
 
-with ash as (select * from system.ash_2016622_182239 &3)
+with ash as (select * from dba_hist_active_sess_history where snap_id = 337419 &3)
 , log_block as (select value / (select max(blocksize) from v$log) as ratio from v$parameter where name = 'db_block_size')
 select * from (
-    select inst_id,
+    select --inst_id,
            SQL_PROCESS,
            SUM(WAIT_COUNT),
            to_char(RATIO_TO_REPORT(SUM(WAIT_COUNT)) OVER() * 100, '990.99') AS "waits%",
@@ -40,7 +40,7 @@ select * from (
 --            EXECS,          
 --            MIN_SAMPLE_TIME,
 --            MAX_SAMPLE_TIME 
-      from (select inst_id,
+      from (select --inst_id,
                    SQL_PROCESS,
                    event,
                    sum(WAIT_COUNT)                   as WAIT_COUNT,
@@ -64,7 +64,7 @@ select * from (
                                 else 1
                            end                                                                                            as BLOCKS_PER_WAIT,
                            case when p3text='requests' then p3 when p1text='requests' then p1 else 1 end                  as REQS_PER_WAIT,
-                           inst_id,
+                           --inst_id,
                            count(distinct sql_exec_id)                                                                    as EXECS,
                            to_char(min(SAMPLE_TIME),'DD.MM.YYYY HH24:MI:SS')                                              as MIN_SAMPLE_TIME,
                            to_char(max(SAMPLE_TIME),'DD.MM.YYYY HH24:MI:SS')                                              as MAX_SAMPLE_TIME
@@ -84,10 +84,11 @@ select * from (
                                    when p1text = 'requests' then p1  
                                    else 1
                               end,
-                              case when p3text='requests' then p3 when p1text='requests' then p1 else 1 end,
-                              inst_id)
+                              case when p3text='requests' then p3 when p1text='requests' then p1 else 1 end
+                              --, inst_id
+)
                  , log_block
-             group by inst_id,
+             group by --inst_id,
                       SQL_PROCESS,
                       event,
                       log_block.ratio
@@ -96,7 +97,8 @@ select * from (
 --                      MIN_SAMPLE_TIME,
 --                      MAX_SAMPLE_TIME
              )
-     group by inst_id, SQL_PROCESS
+     group by --inst_id,
+              SQL_PROCESS
 --, EXECS, MIN_SAMPLE_TIME, MAX_SAMPLE_TIME
      order by decode(nvl(upper('&&1'),'BLOCKS'), 'WAITS', SUM(WAIT_COUNT), 'REQS', SUM(REQUESTS), 'BLOCKS', SUM(BLOCKS), SUM(BLOCKS)) desc
 ) where rownum <= nvl('&2', 10)

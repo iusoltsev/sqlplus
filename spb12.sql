@@ -1,5 +1,5 @@
 -- Baseline hints list for Oracle 12c
--- Usage: SQL> @bl_hints SQL_PLAN_acg49cdw0088v4085ecd2
+-- Usage: SQL> @spb12 SQL_PLAN_acg49cdw0088v4085ecd2
 --
 set verify off feedback off timi off long 512
 col OUTLINE_HINTS for a512

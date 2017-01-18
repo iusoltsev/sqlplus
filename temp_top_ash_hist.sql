@@ -1,7 +1,7 @@
 --
 -- The TEMP usage SQL_EXEC top from ASH history
 -- SQL> @temp_top_ash_hist [30]               [10]
---                          ^period (in deys) ^top sql_exec count
+--                          ^period (in days) ^top sql_exec count
 --
 select * from (
                 select instance_number as inst_id,

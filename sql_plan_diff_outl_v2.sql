@@ -62,7 +62,7 @@ plh2 as (select substr(extractvalue(value(d), '/hint'), 1, 512) as phv_&&4
  minus
  select plh1.* from plh1 join plh2 on plh1.phv_&&2 = plh2.phv_&&4)
 union all
-select '' from dual
+select '----------------------------------------------------------------------------------------------------' from dual
 union all
 select 'PHV_&&4' from dual
 union all

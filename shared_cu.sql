@@ -19,26 +19,6 @@ col SQL_PLAN_BASELINE for a30
 col SQL_PATCH for a30
 col SQL_PROFILE for a64
 
-/*
-select  sql_id,
-	child_number as CHILD,
-	use_feedback_stats as USE_FEEDBACK_STATS,
-	load_optimizer_stats as OPTIMIZER_STATS,
-	bind_equiv_failure as BIND_EQ_FAILURE, 
-(select reasons||'  |  '||details from xmltable
-('/ChildNode' passing
-(select xmltype(reason) as xmlval
- from v$sql_shared_cursor
- where dbms_lob.substr(reason,256) <> ' '
- and sql_id = sc.sql_id
- and child_number = sc.child_number)
-columns
-Reasons varchar2(60) path '/ChildNode/reason',
-Details varchar2(60) path '/ChildNode/details')) as Reason
-from v$sql_shared_cursor sc
-where sc.sql_id = '&1';
-*/
-
 select s.inst_id as INST,
        s.EXECUTIONS as EXECS,
        to_char(to_date(s.last_load_time, 'yyyy-mm-dd/hh24:mi:ss'), 'dd.mm hh24:mi') as last_load_time,

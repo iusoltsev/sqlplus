@@ -5,12 +5,13 @@
 -- Igor Usoltsev
 --
 
-SET VERIFY OFF
+SET VERIFY OFF linesize 200
 
 col AREA                 for a12
 col STATUS               for a30
 col DISTINCT_BLOCK_COUNT for a40
 col BLOCK_COUNT          for a12
+col PARTITION_NAME       for a30
 
 with OBJLIST as
  (select DATA_OBJECT_ID,

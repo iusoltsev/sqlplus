@@ -179,7 +179,7 @@ SELECT KSMCHIDX subpool,
           KSMCHCLS
  order by KSMCHIDX,
           KSMCHDUR,
-          KSMCHCLS;
+          KSMCHCLS
 /
 select '0 (<140)' BUCKET, KSMCHCLS, KSMCHIDX, 10*trunc(KSMCHSIZ/10) "From",
 count(*) "Count" , max(KSMCHSIZ) "Biggest",

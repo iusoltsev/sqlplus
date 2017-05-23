@@ -20,7 +20,8 @@ col OBJECT_NAME for a65
 with ash as (select * from gv$active_session_history &3
             )
 select /*+ rule*/ * from (
-    select --inst_id,
+    select 
+inst_id,
            object_name,
            tablespace_name,
            SUM(WAIT_COUNT),
@@ -35,7 +36,8 @@ select /*+ rule*/ * from (
                                   , 'BLOCKS', rtrim(xmlagg(xmlelement(s, '(' || WAIT_COUNT||':'|| REQUESTS ||':'|| BLOCKS, '); ').extract('//text()') order by BLOCKS desc), '; ')
                                             , rtrim(xmlagg(xmlelement(s, '(' || WAIT_COUNT||':'|| REQUESTS ||':'|| BLOCKS, '); ').extract('//text()') order by BLOCKS desc), '; '))
             as "event(waits:requests:blocks)"
-      from (select --inst_id,
+      from (select 
+inst_id,
                    object_name,
                    tablespace_name,
                    sum(WAIT_COUNT)                     as WAIT_COUNT,
@@ -50,7 +52,7 @@ select /*+ rule*/ * from (
                                 else 1
                            end                                                                                            as BLOCKS_PER_WAIT,
                            case when p3text='requests' then p3 when p1text='requests' then p1 else 1 end                  as REQS_PER_WAIT
---,inst_id
+,inst_id
                       from ash --Gv$active_session_history--
                       left join dba_objects o     on current_obj# = object_id
                       left join dba_data_files f  on current_file# = file_id
@@ -67,15 +69,17 @@ select /*+ rule*/ * from (
                                    else 1
                               end,
                               case when p3text='requests' then p3 when p1text='requests' then p1 else 1 end
---,inst_id
+,inst_id
 			      )
-             group by --inst_id,
+             group by 
+inst_id,
                       object_name,
                       tablespace_name)
-     group by --inst_id,
+     group by 
+inst_id,
               object_name,
               tablespace_name
-     order by decode(nvl(upper('&&1'),'BLOCKS'), 'WAITS', SUM(WAIT_COUNT), 'REQS', SUM(REQUESTS), 'BLOCKS', SUM(BLOCKS), SUM(BLOCKS)) desc
+     order by 1, decode(nvl(upper('&&1'),'BLOCKS'), 'WAITS', SUM(WAIT_COUNT), 'REQS', SUM(REQUESTS), 'BLOCKS', SUM(BLOCKS), SUM(BLOCKS)) desc
 ) where rownum <= nvl('&2', 10)
 /
 set feedback on echo off VERIFY ON

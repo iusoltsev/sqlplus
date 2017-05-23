@@ -1,5 +1,7 @@
+--
 -- Baseline hints list for Oracle 12c
 -- Usage: SQL> @spb12 SQL_PLAN_acg49cdw0088v4085ecd2
+-- https://iusoltsev.wordpress.com/2016/04/04/12c-spm-baseline-sys-sqlobjplan-upd/
 --
 set verify off feedback off timi off long 512
 col OUTLINE_HINTS for a512
@@ -10,8 +12,28 @@ col OBJECT_OWNER for a30
 col OBJECT_NAME for a30
 col OPTIMIZER for a30
 col BIND for a512 hea "Bind Vars"
+col SKIP for a4
+col DISP for 9999
 
-SELECT lpad(' ', 2 * level) || pt.operation || ' ' || pt.options as operation,
+WITH display_map AS
+ (SELECT X.*
+  FROM (select *
+          from sys.sqlobj$plan op
+          join sys.sqlobj$ o
+          using (obj_type, signature, plan_id)
+         where o.name = '&&1') pt,
+       XMLTABLE ( '/other_xml/display_map/row' passing XMLTYPE(other_xml ) COLUMNS 
+                        op  NUMBER PATH '@op',    -- operation
+                        dis NUMBER PATH '@dis',   -- display
+                        par NUMBER PATH '@par',   -- parent
+                        prt NUMBER PATH '@prt',   -- ?
+                        dep NUMBER PATH '@dep',   -- depth
+                        skp NUMBER PATH '@skp' )  -- skip
+                    AS X
+  WHERE other_xml   IS NOT NULL)
+SELECT decode(nvl(m.skp,0),1,'-',' ') as SKIP,
+       NVL(m.dis, pt.ID) as DISP,
+       lpad(' ', 2 * level) || pt.operation || ' ' || pt.options as operation,
        pt.qblock_name,
        pt.object_alias,
        pt.object_owner,
@@ -27,12 +49,11 @@ SELECT lpad(' ', 2 * level) || pt.operation || ' ' || pt.options as operation,
        pt.time
 --, pt.other_xml
   FROM (select *
-          from sqlobj$plan op, sys.sqlobj$ o
-         where o.obj_type = 2
-           and op.obj_type = 2
-           and o.name = '&&1'
-           and o.signature = op.signature
-           and o.plan_id = op.plan_id) pt
+          from sys.sqlobj$plan op
+          join sys.sqlobj$ o
+          using (obj_type, signature, plan_id)
+         where o.name = '&&1') pt
+  left join display_map m on pt.id = m.op
 CONNECT BY PRIOR pt.id = pt.parent_id
  START WITH pt.id = 0
 /

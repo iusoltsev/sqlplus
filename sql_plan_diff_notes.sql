@@ -93,22 +93,26 @@ from
                   where sql_id = '&&1'
                     and plan_hash_value = nvl('&&2',0)
                     and other_xml is not null
+                    and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
-                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2', 0) and rownum <= 1)) v1,
+--                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2', 0) and rownum <= 1)
+   ) v1,
    (select other_xml as other_xml2
                    from dba_hist_sql_plan
                   where sql_id = '&&3'
                     and plan_hash_value = nvl('&&4',0)
                     and other_xml is not null
-                    and not exists (select 1 from gv$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0) and other_xml is not null)
+                    and not exists (select 1 from gv$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4',0) and other_xml is not null)
     union all
     select other_xml
                    from gv$sql_plan
                   where sql_id = '&&3'
                     and plan_hash_value = nvl('&&4',0)
                     and other_xml is not null
+                    and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
-                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4', 0) and rownum <= 1)) v2)
+--                    and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4', 0) and rownum <= 1)
+   ) v2)
 /
 --@@sql_plan_diff_outl  &&1 &&2 &&3 &&4 &&5
 @@sql_plan_diff_outl_v2  &&1 &&2 &&3 &&4 &&5

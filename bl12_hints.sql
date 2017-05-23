@@ -1,7 +1,9 @@
 -- Baseline hints list for Oracle 12c
 -- Usage: SQL> @bl12_hints SQL_PLAN_acg49cdw0088v4085ecd2
+-- use SPB12.SQL for 11g and 12c Baselines
 --
-set verify off feedback off timi off
+set verify off feedback off timi off lines 500
+col OUTLINE_HINTS for a300
 
 select substr(extractvalue(value(d), '/hint'), 1, 512) as outline_hints
   from xmltable('/*/outline_data/hint' passing

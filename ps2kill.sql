@@ -24,8 +24,8 @@ SELECT p.username,
    and s.paddr = p.addr
  WHERE (s.sid is null or s.status = 'KILLED')
    and UPPER(p.program) not like '%PSEUDO%'
-   and UPPER(p.program) not like '%D00%'
-   and UPPER(p.program) not like '%S00%'
+   and UPPER(p.program) not like '%D0%'
+   and UPPER(p.program) not like '%S0%'
    and UPPER(p.program) not like '%(P%'
 /
 

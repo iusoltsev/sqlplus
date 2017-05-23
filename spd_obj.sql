@@ -65,7 +65,7 @@ select --+ rule
                          where ft.f_obj# in
                                (select object_id name
                                   from dba_objects
-                                 where owner = nvl(upper('&1'),owner) and object_name = upper('&2'))
+                                 where owner = nvl(upper('&1'),owner) and object_name = nvl(upper('&2'),object_name))
                            and d.f_id = ft.f_id))
 select 
      --finding_id,
@@ -108,9 +108,5 @@ dbms_lob.substr( dbms_xmlgen.convert(rtrim(xmlagg(xmlelement(e, '#'|| intcol# ||
           redundant
  order by directive_id desc
 /
-
---unset &1
---unset &2
---unset &&3
 
 set feedback on VERIFY ON timi on

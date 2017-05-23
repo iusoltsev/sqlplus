@@ -1,13 +1,21 @@
 --
--- Check SPM baseline existance for exact SQL_ID
+-- Check SPM baseline existence for exact SQL_ID
 -- Usage: SQL> @bl_check4sql_id 4y4bvy7bhkqbn
 --
 
-set echo off feedback on heading on VERIFY OFF serveroutput on
+set echo off feedback on heading on VERIFY OFF serveroutput on lines 1000
 
 col sql_handle for a30
 col plan_name  for a30
 col VERSION    for a10
+col PHV_full   for a10
+col PHV        for a10
+col PHV2       for 9999999999
+col created       for a19
+col last_modified for a19
+col last_executed for a19
+col last_verified for a19
+
 
 select
     sql_handle,

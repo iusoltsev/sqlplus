@@ -18,6 +18,7 @@ col Reason for a60
 col SQL_PLAN_BASELINE for a30
 col SQL_PATCH for a30
 col SQL_PROFILE for a64
+col CF for a3
 
 select s.inst_id as INST,
        s.EXECUTIONS as EXECS,
@@ -32,6 +33,7 @@ select s.inst_id as INST,
        s.IS_BIND_AWARE as "BIND_AWARE",
        s.IS_SHAREABLE as "SHAREABLE",
        use_feedback_stats as USE_FEEDBACK_STATS,
+       REGEXP_SUBSTR ( dbms_lob.substr(p.other_xml,4000), '<(info) type="cardinality_feedback">([^<]+)</\1>', 1, 1, NULL, 2) as CF,
        load_optimizer_stats as OPTIMIZER_STATS,
        bind_equiv_failure as BIND_EQ_FAILURE,
        ROLL_INVALID_MISMATCH,

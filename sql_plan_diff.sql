@@ -19,7 +19,7 @@ col BYTES           for 99999999999999999999
 col "COST(IO)"      for 99999999999999999999
 col TEMP            for 999999999999
 col TIME            for 9999999999
-col OBJECT_ALIAS    for a32
+col OBJECT_ALIAS    for a36
 
 pro
 pro -------------------------------
@@ -217,5 +217,5 @@ CONNECT BY PRIOR p2.id = p2.parent_id
 -- ORDER BY NVL(m.dis, p2.ID) -- as a vaiant, instead of CPNNECT BY PRIOR
 /
 @@sql_plan_diff_notes &&1 &&2 &&3 &&4
-@@sql_plan_diff_outl_v2  &&1 &&2 &&3 &&4 &&5
+--@@sql_plan_diff_outl_v2  &&1 &&2 &&3 &&4 &&5
 set feedback on VERIFY ON timi on

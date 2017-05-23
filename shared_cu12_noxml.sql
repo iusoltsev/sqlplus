@@ -41,6 +41,7 @@ col max_sample_time for a25
 col "DURATIONs" for a25
 col "V$SQL.Adapt" for a11
 col "XML.Adapt"   for a9
+col CF            for a3
 
 select s.inst_id    as INST,
        s.EXECUTIONS as EXECS,
@@ -67,7 +68,9 @@ select s.inst_id    as INST,
        s.IS_BIND_SENSITIVE as "BIND_SENSE",
        s.IS_BIND_AWARE as "BIND_AWARE",
        s.IS_SHAREABLE as "SHAREABLE",
+       load_optimizer_stats as OPTIMIZER_STATS,
        sc.use_feedback_stats as USE_FEEDBACK_STATS,
+       REGEXP_SUBSTR ( dbms_lob.substr(p.other_xml,4000), '<(info) type="cardinality_feedback" note="y">([^<]+)</\1>', 1, 1, NULL, 2) as CF,
        s.IS_REOPTIMIZABLE as "REOPT",
        rh.REOPT_HINTS,
 --       s.IS_RESOLVED_ADAPTIVE_PLAN as "ADAPT",
@@ -78,7 +81,6 @@ select s.inst_id    as INST,
        REGEXP_SUBSTR ( dbms_lob.substr(p.other_xml,4000), '<(info) type="dynamic_sampling" note="y">([^<]+)</\1>', 1, 1, NULL, 2) as DS_LEVEL,
        REGEXP_SUBSTR ( dbms_lob.substr(p.other_xml,4000), '<(info) type="dop" note="y">([^<]+)</\1>', 1, 1, NULL, 2)              as DOP,
        REGEXP_SUBSTR ( dbms_lob.substr(p.other_xml,4000), '<(info) type="dop_reason" note="y">([^<]+)</\1>', 1, 1, NULL, 2)       as DOP_REASON,
-       load_optimizer_stats as OPTIMIZER_STATS,
        bind_equiv_failure as BIND_EQ_FAILURE,
 CURSOR_PARTS_MISMATCH,
        ROLL_INVALID_MISMATCH as "ROLL",
@@ -125,6 +127,6 @@ select *
            and sql_exec_id > 0
          group by inst_id, sql_id, sql_child_number, sql_exec_id, sql_plan_hash_value
          order by 6 desc)
- where rownum <= 5
+ where rownum <= 15
 /
 set feedback on VERIFY ON

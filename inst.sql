@@ -1,4 +1,4 @@
-set feedback off lines 200
+set feedback off lines 1000
 
 col INST_ID for a7
 col INSTANCE_NAME for a20
@@ -8,7 +8,7 @@ col VERSION for a10
 col STARTUP_TIME for a20
 col STATUS for a8
 col PARALLEL for a8
-col THREAD# for a7
+col THREAD for a7
 col ARCHIVER for a8
 col DATABASE_STATUS  for a15
 col INSTANCE_ROLE for a20
@@ -32,7 +32,7 @@ select to_char(INST_ID)||decode(inst_id,sys_context('userenv', 'instance'),'*') 
        ARCHIVER,
        ACTIVE_STATE,
        PARALLEL,
-       to_char(THREAD#) as THREAD#
+       to_char(THREAD#) as THREAD
 from gv$instance, v$database d
 order by INST_ID;
 

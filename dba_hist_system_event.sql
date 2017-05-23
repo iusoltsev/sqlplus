@@ -23,6 +23,6 @@ select
 from dba_hist_system_event hse
      join dba_hist_snapshot sna using(snap_id, instance_number)
      where &1 --hse.event_name in ('db file sequential read') and snap_id >= 31922
-  order by 2,1
+  order by 1,2--2,1
 	    ) where WAIT_COUNT is not null
 /

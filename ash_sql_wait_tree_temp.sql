@@ -17,7 +17,7 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from bo.ASH_20161104 s &3
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SCOTT.ASH_201704041829 s &3
 --		where sample_time > sysdate-1/24
 		)
 select LEVEL as LVL,
@@ -31,7 +31,7 @@ select LEVEL as LVL,
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
---       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
+       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
 --       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
@@ -87,7 +87,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end,
---          REGEXP_SUBSTR(client_id, '.+\#'),
+          REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
           wait_class,
 --        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))

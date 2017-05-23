@@ -16,7 +16,7 @@ begin
   loop
     sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
                                              hint_text => 'opt_param(''optimizer_adaptive_features'' ''false'') no_bind_aware OPT_PARAM(''optimizer_dynamic_sampling'' &&2)',
-                                             name      => 'NO_ADAPT_&&1_ADS_&&2');
+                                             name      => 'NO_ADAPT_&&1');
   end loop;
 end;
 /

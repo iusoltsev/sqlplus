@@ -5,10 +5,10 @@
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
 
-unset &1
-unset &2
-unset &3
-unset &4
+undefine &1
+undefine &2
+undefine &3
+undefine &4
 
 col PLAN_OPERATION for a170
 col WAIT_PROFILE for a200
@@ -19,7 +19,7 @@ col OBJECT_NAME for a30
 col QBLOCK_NAME for a15
 
 with
- ash0 as (select * from Gv$active_session_history &4),
+ ash0 as (select * from Gv$active_session_history &&4),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,

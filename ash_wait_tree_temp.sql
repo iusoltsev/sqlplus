@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_wait_tree "event = 'log file sync'"
+-- Usage: SQL> @ash_wait_tree_temp "event = 'log file sync'"
 -- Igor Usoltsev
 -- http://iusoltsev.wordpress.com
 --
@@ -18,7 +18,7 @@ col SQL_ID for a13
 col SQL_OPNAME for a20
 col CLIENT_ID for a40
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from bo.ASH_20161104
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SCOTT.ASH_201704191852
  s
  &3)
 select --decode(LEVEL,1,'Waiter','Blocker#'||to_char(LEVEL-1)) as LVL,

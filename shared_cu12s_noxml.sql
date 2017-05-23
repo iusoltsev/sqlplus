@@ -8,6 +8,17 @@ col reason#4 for a40
 select
     inst_id,
     s.PLAN_HASH_VALUE,
+       round(AVG(s.EXECUTIONS))                                                  as EXECS,
+       round(AVG(s.ROWS_PROCESSED/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))        as ROWS_PER_EXEC,
+       round(AVG(s.elapsed_time/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))          as ELA_PER_EXEC,
+       round(AVG(s.cpu_time/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))              as CPU_PER_EXEC,
+       round(AVG(s.parse_calls/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))           as PARSES_PER_EXEC,
+       round(AVG(s.buffer_gets/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))           as GETS_PER_EXEC,
+       round(AVG(s.disk_reads/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))            as READS_PER_EXEC,
+       round(AVG(s.user_io_wait_time/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))     as UIO_PER_EXEC,
+       round(AVG(s.concurrency_wait_time/decode(s.EXECUTIONS,0,1,s.EXECUTIONS))) as CONC_PER_EXEC,
+       round(AVG(s.cluster_wait_time/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))     as CLU_PER_EXEC,
+       round(AVG(s.PLSQL_EXEC_TIME/decode(s.EXECUTIONS,0,1,s.EXECUTIONS)))       as PLSQL_PER_EXEC,
     s.optimizer_mode,
     to_char(max(s.last_active_time), 'dd.mm.yyyy hh24:mi:ss')                 as LAST_ACTIVE_TIME,
 --    s.optimizer_cost,
@@ -81,7 +92,8 @@ case when s.IS_RESOLVED_ADAPTIVE_PLAN is null then 'N' when s.IS_RESOLVED_ADAPTI
 ,s.SQL_PATCH
 ,s.OUTLINE_CATEGORY
 ,s.SQL_PROFILE
- order by count(*) desc
+ order by --count(*)
+          max(s.last_active_time) --desc
 /
 
 set feedback on VERIFY ON

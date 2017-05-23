@@ -11,7 +11,7 @@ col WAIT_LEVEL for 999
 col BLOCKING_TREE for a30
 col EVENT for a40
 col SQL_TEXT for a100
-col MODULE for a40
+col MODULE for a50
 col CLIENT_ID for a40
 col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999

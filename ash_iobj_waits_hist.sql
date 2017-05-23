@@ -1,6 +1,6 @@
 --
 -- ASH I/O waits
--- Usage: SQL> @ash_iobj_waits [waits|reqs|blocks] [10]         "where sample_time > sysdate - 1/24"
+-- Usage: SQL> @ash_iobj_waits_hist [waits|reqs|blocks] [10]         "where snap_id between 341754 and 341762"
 --                            ^sort order         ^top N rows  ^ash filter
 -- by Igor Usoltsev
 --

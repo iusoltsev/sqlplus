@@ -3,11 +3,22 @@
 -- Usage: SQL> @spm_check4sql_id 7vq327rya3615
 --
 
-set echo off feedback on heading on VERIFY OFF serveroutput on
+set echo off feedback on heading on VERIFY OFF serveroutput on lines 1000
 
 col sql_handle for a30
 col patch_name  for a30
 col SPM_TYPE for a17
+col VERSION for a10
+col CREATED       for a19
+col LAST_MODIFIED for a19
+col LAST_EXECUTED for a19
+col LAST_VERIFIED for a19
+col ENABLED       for a7
+col ACCEPTED      for a8 
+col FIXED         for a5   
+col REPROD        for a6
+col PURGE         for a5
+col ADAPT         for a5
 
 with spm as (SELECT /*+ dynamic_sampling(3) */
                 DECODE(so.obj_type, 1, 'SQL Profile',
@@ -50,16 +61,16 @@ with spm as (SELECT /*+ dynamic_sampling(3) */
                 ad.fetches,
                 ad.end_of_fetch_count
             FROM
-                sqlobj$        so,
-                sqlobj$auxdata ad,
-                sql$text       st
+                sys.sqlobj$        so,
+                sys.sqlobj$auxdata ad,
+                sys.sql$text       st
             WHERE
                 so.signature = st.signature AND
                 ad.signature = st.signature AND
                 so.signature = ad.signature AND
                 so.plan_id = ad.plan_id AND
                 so.obj_type = ad.obj_type)
-select to_char(signature,'99999999999999999999') as signature,
+select 
        SPM_TYPE,
        sql_handle,
        patch_name,
@@ -73,15 +84,17 @@ select to_char(signature,'99999999999999999999') as signature,
        accepted,
        fixed,
        reproduced,
-       autopurge
+       autopurge,
+to_char(signature,'99999999999999999999') as spm_signature,
+to_char(exact_matching_signature,'99999999999999999999') as sql_exact_signature,
+to_char(force_matching_signature,'99999999999999999999') as sql_force_signature
   from spm bl, gv$sqlarea sa
 -- where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
 where DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
    and sa.sql_id = '&&1'
    and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
 union
-select to_char(signature,'99999999999999999999') as signature,
-       SPM_TYPE,
+select SPM_TYPE,
        sql_handle,
        patch_name,
        origin,
@@ -94,7 +107,10 @@ select to_char(signature,'99999999999999999999') as signature,
        accepted,
        fixed,
        reproduced,
-       autopurge
+       autopurge,
+to_char(signature,'99999999999999999999'),
+to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 0),'99999999999999999999'),
+to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'99999999999999999999')
   from spm bl, dba_hist_sqltext sa
  where dbms_lob.compare(bl.sql_text, sa.sql_text) = 0
    and sa.sql_id = '&&1'

@@ -1,14 +1,14 @@
 --
 -- SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')"
+-- Usage: SQL> @ash_sqlmon2_temp &sql_id [&plan_hash_value] [&sql_exec_id] "scott.ash_201704071420 where sample_time < trunc(sysdate,'hh24')"
 -- 
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
 
-unset &1
-unset &2
-unset &3
-unset &4
+undefine &1
+undefine &2
+undefine &3
+undefine &4
 
 col PLAN_OPERATION for a170
 col WAIT_PROFILE for a200
@@ -19,8 +19,7 @@ col OBJECT_NAME for a30
 col QBLOCK_NAME for a15
 
 with
- ash0 as (select * from scott.ASH_201611241351 -- gv$active_session_history
-          &4),
+ ash0 as (select * from &4),--scott.ash_201704071420 -- gv$active_session_history--
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,

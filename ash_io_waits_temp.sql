@@ -1,6 +1,6 @@
 --
 -- ASH I/O waits
--- Usage: SQL> @ash_io_waits_temp [waits|reqs|blocks] [10]         "where sample_time > sysdate - 1/24"
+-- Usage: SQL> @ash_io_waits_temp [waits|reqs|blocks] [10]         "and sample_time > sysdate - 1/24"
 --                            ^sort order         ^top N rows  ^ash filter
 -- by Igor Usoltsev
 --
@@ -18,7 +18,7 @@ col t0 for 999
 col MIN_SAMPLE_TIME for a22
 col MAX_SAMPLE_TIME for a22
 
-with ash as (select * from dba_hist_active_sess_history where snap_id = 337419 &3)
+with ash as (select * from system.ash_290317_tmp where &3)
 , log_block as (select value / (select max(blocksize) from v$log) as ratio from v$parameter where name = 'db_block_size')
 select * from (
     select --inst_id,

@@ -22,7 +22,7 @@ col COLUMN_LIST for a50
 with d as (
 select --+ rule
 distinct
--- to_char(d.f_id, '999999999999999999999')   as finding_id,
+ to_char(d.f_id, '999999999999999999999')   as finding_id,
  to_char(d.dir_id, '999999999999999999999') as directive_id,
  d.type,
  d.enabled,
@@ -59,9 +59,11 @@ distinct
              union all
              select kqfcotob obj#, kqfcocno intcol#, kqfconam name
              from sys.x$kqfco) c on o.obj# = c.obj# and ft.intcol# = c.intcol#
- where d.dir_id in (&1))
-select directive_id,
-        type,
+ where d.dir_id in (&1)
+OR d.f_id in (&1))
+select finding_id,
+       directive_id,
+       type,
        enabled,
        int_state,
        STATE,
@@ -81,7 +83,8 @@ dbms_lob.substr( dbms_xmlgen.convert(rtrim(xmlagg(xmlelement(e, '#'|| intcol# ||
        last_modified,
        last_used
   from d
- group by directive_id,
+ group by finding_id,
+          directive_id,
           type,
           enabled,
           int_state,

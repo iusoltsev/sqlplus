@@ -5,10 +5,10 @@
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
 
-undefine &1
-undefine &2
-undefine &3
-undefine &4
+--undefine &1
+--undefine &2
+--undefine &3
+--undefine &4
 
 col PLAN_OPERATION for a170
 col WAIT_PROFILE for a200

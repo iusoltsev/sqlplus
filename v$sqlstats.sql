@@ -1,7 +1,9 @@
-set feedback off heading on timi off pages 200 lines 500 echo off  VERIFY OFF
+set feedback off heading on timi off pages 200 lines 1000 echo off  VERIFY OFF
 pro
 pro --------------------------------------------------------------
+
 pro SQL_ID=&&1 Shared Pool GV$SQLSTATS
+
 pro --------------------------------------------------------------
 
 select st.inst_id as "INST",

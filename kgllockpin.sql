@@ -43,14 +43,17 @@ select --+ ordered
        left join x$kglob w   on l.kgllkhdl = w.kglhdadr
        left join v$sqlarea a on s.sql_address    = a.address
                             and s.sql_hash_value = a.hash_value
-order by to_char(s.sql_exec_start,'mm/dd hh24:mi:ss'), l.kgllkhdl, s.seconds_in_wait desc, l.kgllktype
+order by
+-- to_char(s.sql_exec_start,'mm/dd hh24:mi:ss'), l.kgllkhdl, s.seconds_in_wait desc, l.kgllktype
+KGLNAOWN, KGLNAOBJ, MODE_HELD,  MODE_REQ
 /
 prompt
 prompt
 prompt SQL for executing on other instances:
+/*
 select --+ ordered
        distinct
-       'select /*+ ordered */'
+       'select /+ ordered /'
        ||chr(13)||chr(10)||'     w.kglhdadr   as HANDLER,'
        ||chr(13)||chr(10)||'     l.kgllktype,'
        ||chr(13)||chr(10)||'     w.kglhdnsd   as NAMESP,'
@@ -81,6 +84,6 @@ select --+ ordered
   from (select distinct p1raw from v$session where state = 'WAITING' and event in ('library cache lock', 'library cache pin')) b
        join dba_kgllock l  on l.kgllkhdl = b.p1raw -- this is LOCAL view ONLY
        left join x$kglob w on l.kgllkhdl = w.kglhdadr
-/
+*/
 rem @@mutex_waits
 set feedback on VERIFY ON timi on

@@ -104,6 +104,7 @@ CURSOR_PARTS_MISMATCH,
    and (s.PLAN_HASH_VALUE = NVL('&&2',s.PLAN_HASH_VALUE) or '&&2' = '0')
 order by 
       s.last_active_time,
+      s.last_load_time,
       s.inst_id -- s.EXECUTIONS,
 /
 @@v$sqlstats2 &&1 &&2
@@ -115,6 +116,7 @@ select *
   from (select inst_id,
                sql_id,
                sql_plan_hash_value,
+--               sql_full_plan_hash_value,
                sql_exec_id,
                sql_child_number                    as CHILD_ID,
                count(distinct sample_id)           as ash_rows,
@@ -126,7 +128,8 @@ select *
            and (sql_plan_hash_value = NVL('&&2',sql_plan_hash_value) or '&&2' = '0')
            and sql_exec_id > 0
          group by inst_id, sql_id, sql_child_number, sql_exec_id, sql_plan_hash_value
-         order by 6 desc)
+--, sql_full_plan_hash_value
+         order by count(distinct sample_id) desc)
  where rownum <= 15
 /
 set feedback on VERIFY ON

@@ -1,7 +1,7 @@
 set verify off
 
 col name for a40
-col SQL_FEATURE for a20
+col SQL_FEATURE for a24
 col CLASS for a40
 col INVERSE for a64
 col TLVL for 9999

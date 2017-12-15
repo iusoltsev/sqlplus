@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait_tree "event = 'log file sync'" 100 "where sample_time > sysdate-1/24"
+-- Usage: SQL> @ash_sql_wait_tree_temp "event = 'log file sync'" 100 "where sample_time > sysdate-1/24"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -17,7 +17,8 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SCOTT.ASH_201704041829 s &3
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201712130031
+ s &3
 --		where sample_time > sysdate-1/24
 		)
 select LEVEL as LVL,
@@ -34,8 +35,9 @@ select LEVEL as LVL,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
---       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
---            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
 in_Parse,
 --xid,
@@ -90,8 +92,9 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
           wait_class,
---        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
---             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
 In_Parse,
 --xid,

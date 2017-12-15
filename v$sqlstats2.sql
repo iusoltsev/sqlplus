@@ -5,7 +5,7 @@
 --                            ^PLAN_HASH_VALUE
 --
 
-set feedback off heading on timi off pages 200 lines 500 echo off  VERIFY OFF
+set feedback off heading on timi off pages 200 lines 1000 echo off  VERIFY OFF
 
 col INST for 9999
 col EXECS for 999999999999
@@ -40,7 +40,9 @@ col DOP_REASON for a30
 
 pro
 pro --------------------------------------------------------------
+
 pro SQL_ID=&&1 Shared Pool statistics by PLAN_HASH_VALUE
+
 pro --------------------------------------------------------------
 
 select s.inst_id                                                                           as INST,
@@ -80,7 +82,8 @@ group by s.inst_id,
          s.SQL_PATCH,
          s.OUTLINE_CATEGORY,
          s.SQL_PROFILE
-order by max(to_char(s.last_active_time, 'dd.mm.yyyy hh24:mi:ss'))
+order by max(to_char(s.last_active_time, 'dd.mm.yyyy hh24:mi:ss')),
+         max(s.last_load_time)
 --round(sum(s.elapsed_time)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS))) desc
 /
 @@v$sqlstats &&1 &&2

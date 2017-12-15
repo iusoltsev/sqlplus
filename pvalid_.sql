@@ -5,6 +5,7 @@ COL pvalid_default HEAD DEFAULT FOR A7
 COL pvalid_value   HEAD VALUE   FOR A30
 COL pvalid_name    HEAD PARAMETER FOR A50
 
+undefine &1
 BREAK ON pvalid_name
 
 SELECT 

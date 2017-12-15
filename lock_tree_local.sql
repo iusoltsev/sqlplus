@@ -17,7 +17,7 @@ col P3TEXT for a40
 col BLOCK_SESSTAT for a13
 col LAST_CALL_ET for 999999999999
 col SECS_IN_WAIT for 999999999999
-col CLNT_HOST   for a25
+col CLNT_HOST   for a40
 col CLNT_PID    for a10
 col OSUSER      for a10
 col SPID        for a10
@@ -78,6 +78,7 @@ select--+ opt_param('_connect_by_use_union_all' 'false')
  p3,
  p3raw
 */
+, 'Alter system kill session '''||s.SID||','||s.SERIAL#||','||'@'||s.INST_ID||''';' as KILL_SESSION
   from s
   left join gv$sqlarea sa1 on s.sql_id = sa1.sql_id and s.inst_id =  sa1.inst_id
   left join gv$sqlarea sa2 on s.prev_sql_id = sa2.sql_id and s.inst_id =  sa2.inst_id

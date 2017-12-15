@@ -21,7 +21,7 @@ col DATA_OBJECT     for a50
 col MODULE     for a40
 col sql_opname for a25
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from ASH_201606171603 s)--dba_hist_active_sess_history s where '&&2' is null OR snap_id between '&&2' and nvl('&&3', '&&2'))
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201711301351 s)--dba_hist_active_sess_history s where '&&2' is null OR snap_id between '&&2' and nvl('&&3', '&&2'))
 select LEVEL as LVL,
        instance_number,
 --       BLOCKING_INST_ID,

@@ -10,7 +10,7 @@ col INST_ID for 9999999
 col WAIT_LEVEL for 999
 col BLOCKING_TREE for a30
 col EVENT for a40
-col SQL_TEXT for a100
+col SQL_TEXT for a200
 col MODULE for a40
 col CLIENT_ID for a40
 col WAITS for 999999
@@ -34,13 +34,18 @@ select LEVEL as LVL,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
+--       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))) as P1RAW,
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
+--case when session_state='WAITING' and p1text='handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
+In_hard_Parse,
 In_Parse,
-sql_adaptive_plan_resolved,
-sql_child_number,
+In_Sql_Execution,
+sql_adaptive_plan_resolved as ADAPTIVE,
+--sql_child_number,
 --machine,
 --program,
+--module,
+top_level_call_name,
 --       p2,
 --       p3,
        count(1) as WAITS_COUNT,
@@ -50,7 +55,6 @@ sql_child_number,
 --round(sum(1000)/decode(round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)),0,1,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)))) as est_avg_latency_ms,
        count(distinct inst_id||session_id||session_serial#) as SESS_COUNT,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
---       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
        blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime,
@@ -60,11 +64,11 @@ max(sample_time) as max_stime,
 ,nvl2(sql_exec_id, 1, 0) as sql_exec_id
        ,sql_plan_line_ID
        ,sql_plan_operation||' '||sql_plan_options
---       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9))) as sql_text
+--       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9))) as sql_text
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))) as sql_text
   from --gv$active_session_history
       ash
-       left join (select sql_id, dbms_lob.substr(sql_text,100) as sql_text from dba_hist_sqltext
+       left join (select sql_id, dbms_lob.substr(sql_text,200) as sql_text from dba_hist_sqltext
                   union select sql_id, dbms_lob.substr(sql_fulltext,100) as sql_text from gv$sqlarea) hs using(sql_id)
        left join dba_procedures   p  on nvl(plsql_entry_object_id, plsql_object_id) = p.object_id
                                     and nvl(plsql_entry_subprogram_id, plsql_subprogram_id) = p.subprogram_id
@@ -89,17 +93,24 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
           wait_class,
-        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+--        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+--             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+--       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))),
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 sql_adaptive_plan_resolved,
-sql_child_number,
+--sql_child_number,
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name,
+--case when session_state='WAITING' and p1text='handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end,
+In_hard_Parse,
 In_Parse,
+In_Sql_Execution,
 --machine,
 --program,
+--module,
+top_level_call_name,
 --          p2,
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
---          o.owner||'.'||o.object_name||'.'||o.subobject_name,
           blocking_session_status||' i#'||blocking_inst_id,
           sql_ID
 ,top_level_sql_id
@@ -107,7 +118,7 @@ In_Parse,
 ,nvl2(sql_exec_id, 1, 0)
           ,sql_plan_line_ID
           ,sql_plan_operation||' '||sql_plan_options
---          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9)))
+--          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9)))
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))
  having count(distinct sample_id) > nvl('&2', 0)
  order by LEVEL, count(1) desc

@@ -32,9 +32,10 @@ select LEVEL as LVL,
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
-       case when module not like 'oracle%' then substr(module,1,15) else module end as MODULE,
+--       case when module not like 'oracle%' then substr(module,1,15) else module end as MODULE,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
+       wait_class,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
 --       p2,
@@ -83,15 +84,16 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
-        case when module not like 'oracle%' then substr(module,1,15) else module end,
+--        case when module not like 'oracle%' then substr(module,1,15) else module end,
           REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
+       wait_class,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
 --          p2,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
 --          p2.owner||'.'||p2.object_name||'.'||p2.procedure_name,
---          o.owner||'.'||o.object_name||'.'||o.subobject_name,
+          o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          blocking_session_status||' i#'||blocking_inst_id,
           sql_ID
           ,sql_plan_hash_value
@@ -124,7 +126,7 @@ select LEVEL as LVL,
 --       top_level_sql_id,
        sql_opname,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
-       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --nvl2(o.object_name, DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#),'') as RROWID,
        blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 --       p1text, p1, p2text, p2, p3text, p3,
@@ -157,7 +159,7 @@ connect by nocycle (ash.SAMPLE_ID       = prior ash.SAMPLE_ID or abs(to_char(ash
           sql_id,
 --          top_level_sql_id,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
-          o.owner||'.'||o.object_name||'.'||o.subobject_name,
+--          o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --nvl2(o.object_name, DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#),''),
           blocking_session_status||' i#'||blocking_inst_id,
           sql_plan_line_ID

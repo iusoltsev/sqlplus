@@ -92,7 +92,7 @@ to_char(force_matching_signature,'99999999999999999999') as sql_force_signature
 -- where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
 where DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
    and sa.sql_id = '&&1'
-   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
+--   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
 union
 select SPM_TYPE,
        sql_handle,
@@ -114,6 +114,6 @@ to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'999999
   from spm bl, dba_hist_sqltext sa
  where dbms_lob.compare(bl.sql_text, sa.sql_text) = 0
    and sa.sql_id = '&&1'
-   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
+--   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
 /
 set feedback on echo off VERIFY ON serveroutput off

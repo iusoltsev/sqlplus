@@ -1,7 +1,7 @@
 --
 -- ASH lock tree for condition
 -- Usage: SQL> @ash_sql_lock_temp "event = 'enq: TX - row lock contention' and sql_id = '8matphjwpgg7k'" 100
---                                                                                                  ^min wait count
+--                                                                                                       ^min wait count
 -- http://iusoltsev.wordpress.com
 --
 
@@ -37,7 +37,7 @@ with ash_locks as
          BLOCKING_SESSION_SERIAL#,
          event,
          sample_time
-    from bo.ASH_20161104
+    from SYSTEM.ASH_201711020939
    where &1 -- event = 'enq: TX - row lock contention' and snap_id = 325800
      and BLOCKING_SESSION > 0
  )
@@ -66,7 +66,7 @@ with ash_locks as
                                  ash_locks.BLOCKED_SID,
                                  ash_locks.BLOCKED_SERIAL#
                      order by abs(cast(ash_locks.sample_time as date) - cast(ash_locker.sample_time as date)) asc ) as rnk
-      from bo.ASH_20161104
+      from SYSTEM.ASH_201711020939
                                                              ash_locker
       join ash_locks
         on --ash_locker.snap_id         = ash_locks.snap_id and

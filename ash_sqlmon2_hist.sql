@@ -13,6 +13,8 @@ col ID for 9999
 col OBJECT_OWNER for a12
 col OBJECT_NAME for a30
 col QBLOCK_NAME for a14
+col PLAN_OPERATION for a75
+col OBJECT_ALIAS for a45
 
 with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR snap_id between '&&4' and nvl('&&5', '&&4')),
  sid_time as -- List of sessions and their start/stop times
@@ -165,12 +167,39 @@ select   sql_id,
          temp_space,
          nvl(parent_id, -1) as parent_id
     from gv$sql_plan
+-- about v$sql_plan.child_number multi and multi/adaptive PHV
+   where (sql_id, plan_hash_value, child_number, inst_id) in
+            (select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1
+             union all
+             select sql_id, plan_hash_value, child_number, inst_id
+              from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
+                      from ash_recrsv ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1)
+/*
+  select sql_id,
+         plan_hash_value,
+         id,
+         operation,
+         options,
+         qblock_name,
+         object_alias,
+         object_owner,
+         object_name,
+         AVG(cardinality) as cardinality,
+         AVG(bytes)       as bytes,
+         AVG(cost)        as cost,
+         AVG(temp_space)  as temp_space,
+         nvl(parent_id, -1) as parent_id
+    from gv$sql_plan
 -- about v$sql_plan.child_number multi
    where (sql_id, plan_hash_value, child_number) in (select ash.sql_id, sql_plan_hash_value, min(child_number) from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value group by ash.sql_id, ash.sql_plan_hash_value
                                                      union
                                                      select ash_recrsv.sql_id, sql_plan_hash_value, min(child_number) from ash_recrsv join gv$sql_plan p on ash_recrsv.sql_id = p.sql_id and ash_recrsv.sql_plan_hash_value = p.plan_hash_value group by ash_recrsv.sql_id, sql_plan_hash_value)
 --   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash union select sql_id, sql_plan_hash_value from ash_recrsv)
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '671hgg4ck0dpx' and plan_hash_value = nvl('3479296038',0))
+   group by sql_id, plan_hash_value, id, operation, options, qblock_name, object_alias, object_owner, object_name, nvl(parent_id, -1)
+*/
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,

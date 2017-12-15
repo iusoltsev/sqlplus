@@ -11,6 +11,7 @@ col DEP_TREE for a60
 col DEPENDS_ON for a12
 COLUMN LAST_TIME FORMAT A100 HEADING "LAST_DDL \\ LAST_ANALYZED \\ Temp? \\ DEGREE \\ Indices#"
 col LAST_MODIFIED for a17
+col last_analyzed for a19
 col REFERENCED    for a60
 col DOP    for a3
 
@@ -42,6 +43,7 @@ select distinct
 to_char(m.timestamp, 'DD.MM.YY hh24:mi:ss') as LAST_MODIFIED,
        to_char(o.last_ddl_time, 'YYYY.MM.DD hh24:mi:ss') as LAST_DDL
 ,trim(nvl(i.degree, t.degree)) as DOP
+, nvl(t.last_analyzed, i.last_analyzed) as last_analyzed
 from dba_objects o
 left join (select table_owner, table_name, max(timestamp) as timestamp from dba_tab_modifications group by table_owner, table_name) m
        on m.table_owner = o.owner and m.table_name = o.object_name

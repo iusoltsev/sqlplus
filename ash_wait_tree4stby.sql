@@ -19,6 +19,7 @@ col EST_AVG_LATENCY_MS for 999999999
 select LEVEL as LVL,
        LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
+wait_class,
        count(*) as WAITS_COUNT,
        count(distinct session_id) as SESS_COUNT,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS
@@ -31,7 +32,8 @@ connect by nocycle prior ash.SAMPLE_ID = ash.SAMPLE_ID
        and ash.SESSION_ID = prior ash.BLOCKING_SESSION
  group by LEVEL,
           LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')),
-          decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue')
+          decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
+wait_class
  order by LEVEL, count(*) desc
 /
 set feedback on echo off VERIFY ON

@@ -11,7 +11,7 @@ begin
   for reco in (select nvl(sql_fulltext, sql_text) as SQL_FULLTEXT
   		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = '&&1')
                full outer join
-       		(select sql_id, sql_fulltext from v$sqlarea where sql_id = '&&1') using (sql_id))
+       		(select sql_id, sql_fulltext from gv$sqlarea where sql_id = '&&1') using (sql_id))
   loop
     sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
                                              hint_text => 'OPT_PARAM(''optimizer_dynamic_sampling'' 0)',

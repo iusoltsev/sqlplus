@@ -10,11 +10,11 @@ select level,
        lpad('>', level, '>')                                                as DEPENDENCY,
        referenced_type,
        referenced_owner || '.' || referenced_name as REFERENCED_OBJ
-       , (select status || ' ' || to_char(last_ddl_time,'dd.mm.yyyy hh24:mi:ss')
+       , (select status || ' ' || to_char(last_ddl_time,'dd.mm.yyyy hh24:mi:ss') || ' ' || edition_name
             from dba_objects o
            where d.referenced_owner = o.owner
              and d.referenced_name = o.object_name
-             and d.referenced_type = o.object_type) as "STATUS___LAST_DDL_TIME"
+             and d.referenced_type = o.object_type) as "STATUS__LAST_DDL_TIME__EDITION"
   from dba_dependencies d
 connect by nocycle type = prior decode(referenced_type, 'TABLE', 'MATERIALIZED VIEW', referenced_type)
        and owner        = prior referenced_owner

@@ -95,11 +95,10 @@ NVL(f.tablespace_name, l.tablespace_name),
      order by decode(nvl(upper('&&1'),'BLOCKS'), 'WAITS', SUM(WAIT_COUNT), 'REQS', SUM(REQUESTS), 'BLOCKS', SUM(BLOCKS), SUM(BLOCKS)) desc
 ) where rownum <= nvl('&2', 10)
 /
-
 /*
 with ash as (select * from dba_hist_active_sess_history s &&3
             )
-select /*+ rule*/ * from (
+select + rule * from (
     select inst_id,
 --           SQL_PROCESS,
            object_name,

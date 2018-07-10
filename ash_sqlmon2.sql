@@ -139,7 +139,8 @@ select   sql_id,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
-     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+--     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+     and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
   union
 select   sql_id,
          plan_hash_value,
@@ -157,7 +158,8 @@ select   sql_id,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
-     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+--     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+     and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
   union                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
          sql_id,
@@ -223,7 +225,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        ash_stat.WAIT_PROFILE
   from ash_stat
  where (sql_plan_hash_value = 0 and sql_opname not in ('INSERT'))
-    or (sql_opname in ('INSERT') and SQL_EXEC_ID is null)
+    or (sql_opname in ('INSERT') and sql_plan_hash_value = 0 and SQL_EXEC_ID is null)
 UNION ALL
 select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but execution didn't start yet, sql_exec_id is null
        sql_id,              
@@ -268,7 +270,8 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
   FROM pt
-  left join ash_stat
+----  left -- 2exclude empty
+ join ash_stat
   on --pt.parent_id       = -2 and
      pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
      pt.sql_id          = ash_stat.sql_id and
@@ -389,7 +392,7 @@ UNION ALL
 select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        '',
        0 as plan_hash_value,
-       0 as sql_plan_line_id,
+       to_number(null) as sql_plan_line_id,
        'ASH fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
        null,
        null,
@@ -408,5 +411,29 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
          (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
      and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+UNION ALL
+select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
+       sql_id,
+       sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || count(*) || '; Dist.Execs: ' || count(distinct sql_exec_id) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       null as ASH_ROWS,
+       null as WAIT_PROFILE
+  from ash0
+   where sql_id               = '&&1' and                                -- direct SQL exec ONLY
+         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+  group by sql_id, sql_plan_hash_value
 /
 set feedback on VERIFY ON timi on

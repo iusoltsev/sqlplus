@@ -20,9 +20,15 @@ col PLSQL_OBJECT_ID for a60
 col DATA_OBJECT_p1raw     for a52
 col MODULE     for a40
 col sql_opname for a25
+col SDATE for a21 NOPRI
+col CHAR_DATE new_value SYS_DATE
+
+select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
+/
 
 with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from dba_hist_active_sess_history s where '&&2' is null OR snap_id between '&&2' and nvl('&&3', '&&2'))
-select LEVEL as LVL,
+select /*+ rule*/ LEVEL as LVL,
+'&&SYS_DATE' as SDATE,
        instance_number,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
@@ -36,8 +42,9 @@ select LEVEL as LVL,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
+o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --       p2,
        count(1) as WAITS_COUNT,
        count(distinct sql_exec_id) as EXECS_COUNT,
@@ -53,7 +60,7 @@ min(sample_time) as min_stime,
 max(sample_time) as max_stime,
        sql_ID
       ,sql_plan_hash_value
-,sql_opname
+      ,sql_opname
 --       ,sql_plan_line_ID
 --       ,sql_plan_operation||' '||sql_plan_options
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9))) as sql_text
@@ -88,8 +95,9 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
        wait_class,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          p2,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
 --          p2.owner||'.'||p2.object_name||'.'||p2.procedure_name,
@@ -97,6 +105,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 --          blocking_session_status||' i#'||blocking_inst_id,
           sql_ID
           ,sql_plan_hash_value
+, '&&SYS_DATE'
 ,sql_opname
 --          ,sql_plan_line_ID
 --          ,sql_plan_operation||' '||sql_plan_options

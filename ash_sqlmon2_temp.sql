@@ -19,7 +19,7 @@ col OBJECT_NAME for a30
 col QBLOCK_NAME for a15
 
 with
- ash0 as (select * from &4),--scott.ash_201704071420 -- gv$active_session_history--
+ ash0 as (select * from &4),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,
@@ -29,8 +29,8 @@ with
          max(sample_time)            as MAX_SQL_EXEC_TIME
     from ash0
    where sql_id = '&&1'
-     and NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0))
-     and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+     and (NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0)) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0)         = nvl('&&3', NVL(sql_exec_id, 0))         or nvl('&&3',1) = 0)
    group by nvl(qc_session_id, session_id), session_id, session_serial#, sql_id, sql_plan_hash_value, sql_exec_id)
 , ash1 as (select sample_time,
                  session_id,
@@ -46,8 +46,9 @@ with
                  sum(pga_allocated)        over (partition by sample_id) as pga_allocated        -- --//--
             from ash0
            where sql_id              = '&&1'                                -- direct SQL exec ONLY
-             and sql_plan_hash_value = nvl('&&2', sql_plan_hash_value)
-             and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)))
+             and (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+             and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+          )
 , ash as (                               -- ASH part, consisting of direct SQL exec ONLy
   select count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
          0 as plsql_entry_object_id,     -- important for recrsv queries only
@@ -137,8 +138,10 @@ select   sql_id,
          temp_space,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
-   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
-     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash
+ 				       where sql_plan_hash_value > 0 and sql_exec_id is NOT null)
+--     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+     and (sql_id, plan_hash_value) NOT in (select sql_id, plan_hash_value from gv$sql_plan)
   union
 select   sql_id,
          plan_hash_value,
@@ -156,7 +159,8 @@ select   sql_id,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
-     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+--     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+     and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
   union                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
          sql_id,
@@ -178,7 +182,9 @@ select   sql_id,
    where (sql_id, plan_hash_value, child_number, inst_id) in
             (select sql_id, plan_hash_value, child_number, inst_id
               from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
-                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1
+                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0
+and sql_plan_hash_value > 0 and sql_exec_id is NOT null
+                   ) where rn = 1
              union all
              select sql_id, plan_hash_value, child_number, inst_id
               from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
@@ -227,8 +233,7 @@ UNION ALL
 select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but execution didn't start yet, sql_exec_id is null
        sql_id,              
        sql_plan_hash_value as plan_hash_value,
---       ash_stat.sql_plan_line_id as ID,
-       -1 as ID,
+       ash_stat.sql_plan_line_id as ID,
        'sql_plan_hash_value > 0; sql_exec_id is null' as PLAN_OPERATION,
        null as QBLOCK_NAME,
        null as object_alias,
@@ -388,7 +393,7 @@ UNION ALL
 select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        '',
        0 as plan_hash_value,
-       0 as sql_plan_line_id,
+       to_number(null) as sql_plan_line_id,
        'ASH fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
        null,
        null,
@@ -405,7 +410,31 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        ' ash rows were fixed from ' || to_char(min(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') || ' to ' || to_char(max(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') as WAIT_PROFILE
   from ash0
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
-         sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) and
-         NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+UNION ALL
+select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
+       sql_id,
+       sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || count(*) || '; Dist.Execs: ' || count(distinct sql_exec_id) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       null as ASH_ROWS,
+       null as WAIT_PROFILE
+  from ash0
+   where sql_id               = '&&1' and                                -- direct SQL exec ONLY
+         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
+     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+  group by sql_id, sql_plan_hash_value
 /
 set feedback on VERIFY ON timi on

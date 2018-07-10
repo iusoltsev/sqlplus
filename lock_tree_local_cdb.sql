@@ -9,7 +9,7 @@ set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
 col BLOCKING_TREE for a30
 col SQL_TEXT      for a100
 col EVENT         for a40 head "Event name"
-col USERNAME      for a30
+col USERNAME      for a60
 col P1TEXT        for a40
 col P2TEXT        for a40
 col P3TEXT        for a40
@@ -78,6 +78,7 @@ select--+ opt_param('_connect_by_use_union_all' 'false')
  p3,
  p3raw
 */
+, 'Alter system kill session '''||s.SID||','||s.SERIAL#||','||'@'||s.INST_ID||''';' as KILL_SESSION
   from s
 --  left join gv$sqlarea sa1 on s.sql_id = sa1.sql_id and s.inst_id =  sa1.inst_id and s.con_id =  sa1.con_id
 --  left join gv$sqlarea sa2 on s.prev_sql_id = sa2.sql_id and s.inst_id =  sa2.inst_id and s.con_id =  sa2.con_id

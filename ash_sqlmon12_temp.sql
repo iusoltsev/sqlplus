@@ -1,10 +1,10 @@
 --
 -- SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
---  including 12c Adaptive Plan Processing
--- Usage: SQL> @ash_sqlmon12_temp &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')"
---                                                                      ^ additional ASH condition
+--                     including 12c Adaptive Plan Processing
+-- Usage: SQL> @ash_sqlmon12_temp &sql_id [&plan_hash_value] [&sql_exec_id] "ASH_201604011210 where sample_time > trunc(sysdate,'hh24')"
+--                                                                           ^TEMP_ASH name and additional condition
 
-set feedback off heading on timi off pages 500 lines 500 echo off  VERIFY OFF
+set feedback off heading on timi on pages 500 lines 500 echo off  VERIFY OFF
 
 undefine &1
 undefine &2
@@ -29,8 +29,7 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual;
 SET TERMOUT ON
 
 with
- ash0 as (select * from --ASH_201605271205--ASH_201605201818--Gv$active_session_history-- 
-          &4),
+ ash0 as (select * from &4),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,
@@ -131,9 +130,9 @@ group by ash.plsql_entry_object_id,
          sql_plan_line_id)
 -- Adaptive Plan for main query only
 , display_map AS
- (SELECT X.*
-  FROM dba_hist_sql_plan,
-       XMLTABLE ( '/other_xml/display_map/row' passing XMLTYPE(other_xml ) COLUMNS 
+ (  SELECT X.*
+  FROM gv$sql_plan,
+       XMLTABLE ( '/other_xml/display_map/row' passing XMLTYPE(other_xml ) COLUMNS
                         op  NUMBER PATH '@op',    -- operation
                         dis NUMBER PATH '@dis',   -- display
                         par NUMBER PATH '@par',   -- parent
@@ -143,10 +142,11 @@ group by ash.plsql_entry_object_id,
                     AS X
   WHERE (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
   AND other_xml   IS NOT NULL
+  and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash) and rownum <= 1)
   union
   SELECT X.*
-  FROM gv$sql_plan,
-       XMLTABLE ( '/other_xml/display_map/row' passing XMLTYPE(other_xml ) COLUMNS 
+  FROM dba_hist_sql_plan,
+       XMLTABLE ( '/other_xml/display_map/row' passing XMLTYPE(other_xml ) COLUMNS
                         op  NUMBER PATH '@op',    -- operation
                         dis NUMBER PATH '@dis',   -- display
                         par NUMBER PATH '@par',   -- parent
@@ -156,7 +156,8 @@ group by ash.plsql_entry_object_id,
                     AS X
   WHERE (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
   AND other_xml   IS NOT NULL
-  and (inst_id, child_number) in (select inst_id, child_number from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash) and rownum <= 1))
+  and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+)
 /*, hist_fphv as (select p.sql_id,
                        p.plan_hash_value,
                        to_number(extractvalue(h.column_value, '/info')) as FULL_PLAN_HASH_VALUE
@@ -167,6 +168,7 @@ group by ash.plsql_entry_object_id,
      and (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
 */
 , p1 as -- Adaptive Plan Table for direct SQL only
+/*
  (select  nvl(s.SQL_ID,h.SQL_ID) as SQL_ID,
           nvl(s.PLAN_HASH_VALUE,h.PLAN_HASH_VALUE) as PLAN_HASH_VALUE,
 --          nvl(s.FULL_PLAN_HASH_VALUE,h.FULL_PLAN_HASH_VALUE) as FULL_PLAN_HASH_VALUE,
@@ -213,6 +215,43 @@ group by ash.plsql_entry_object_id,
 --                   join hist_fphv using (sql_id, plan_hash_value)
                   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)) h
       on s.id = h.id)
+*/
+(select   sql_id,
+         plan_hash_value,
+         id,
+         operation,
+         options,
+         qblock_name,
+         object_alias,
+         object_owner,
+         object_name,
+         cardinality,
+         bytes,
+         cost,
+         temp_space,
+         nvl(parent_id, -1) as parent_id
+    from dba_hist_sql_plan
+   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
+     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+  union                                          -- for plans not in dba_hist_sql_plan yet
+  select distinct 
+         sql_id,
+         plan_hash_value,
+         id,
+         operation,
+         options,
+         qblock_name,
+         object_alias,
+         object_owner,
+         object_name,
+         cardinality,
+         bytes,
+         cost,
+         temp_space,
+         nvl(parent_id, -1) as parent_id
+    from gv$sql_plan
+-- about v$sql_plan.child_number multi
+   where (sql_id, plan_hash_value, child_number, inst_id) in (select ash.sql_id, sql_plan_hash_value, min(child_number), min(inst_id) from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value group by ash.sql_id, ash.sql_plan_hash_value))
 , pt as (-- Plan Tables for all excuted SQLs (direct+recursive)
   SELECT -- Direct+Adaptive
          p1.sql_id,

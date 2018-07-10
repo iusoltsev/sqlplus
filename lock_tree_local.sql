@@ -21,7 +21,20 @@ col CLNT_HOST   for a40
 col CLNT_PID    for a10
 col OSUSER      for a10
 col SPID        for a10
-
+/*
+, lockhold.con_id as BLOCKING_CON_ID
+, lockhold.inst_id as BLOCKING_INSTANCE
+, lockhold.sid as BLOCKING_SESSION
+...
+and gvs.LOCKWAIT = lockwait.KADDR(+)
+and lockwait.id1 = lockhold.id1(+)
+and lockwait.id2 = lockhold.id2(+)
+and nvl(lockwait.REQUEST,1) > 0
+and	nvl(lockwait.LMODE,0) = 0
+and nvl(lockhold.REQUEST,0) = 0
+and	nvl(lockhold.LMODE,1) > 0
+and nvl(lockwait.SID,0) <> nvl(lockhold.SID,1)
+*/
 select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual;
 
 alter session set "_with_subquery"=optimizer

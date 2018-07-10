@@ -302,9 +302,9 @@ begin
                   and prev.disk_number = curr.DISK_NUMBER
                   and prev.group_number = curr.group_number
                   and nvl(prev.failgroup, 'n') = nvl(curr.failgroup, 'n')
-                  and ( (curr.read_time - prev.read_time) / decode((curr.reads - prev.reads),0,-1,(curr.reads - prev.reads)) > 10 / 1000    -- read longer than 50 ms
+                  and ( (curr.read_time - prev.read_time) / decode((curr.reads - prev.reads),0,-1,(curr.reads - prev.reads)) > 20 / 1000    -- read longer than 50 ms
                       or
-                      (curr.WRITE_TIME - prev.WRITE_TIME) / decode((curr.WRITES - prev.WRITES),0,-1,(curr.WRITES - prev.WRITES)) > 10 / 1000 )-- write longer than 100 ms
+                      (curr.WRITE_TIME - prev.WRITE_TIME) / decode((curr.WRITES - prev.WRITES),0,-1,(curr.WRITES - prev.WRITES)) > 20 / 1000 )-- write longer than 100 ms
                group by curr.NAME
                order by
                max(round(((curr.read_time - prev.read_time) / decode((curr.reads - prev.reads),0,-1,(curr.reads - prev.reads))),4))
@@ -322,7 +322,38 @@ begin
   end loop;
   rollback;
 end;
-
+/
 create global temporary table SYSTEM.V_D_ASM_DISK_LC on commit preserve rows
 as select * from SYS.V$ASM_DISK where 1=0
 /
+T1L205
+T2L203: read time       2.2 ms; write time    1989.8 ms
+
+T1L212: read time      13.8 ms; write time    1625.9 ms
+T1L207: read time      16.3 ms; write time    1391.9 ms
+T2L210: read time    1009.4 ms; write time      30.8 ms
+
+T2L211: read time    1030.6 ms; write time      11.4 ms
+
+T1L223: read time        .5 ms; write time     443.4 ms
+T1L217: read time        .3 ms; write time     395.1 ms
+
+T1L205: read time       7.3 ms; write time    1126.6 ms
+T2L211: read time       3.5 ms; write time    1128.6 ms
+T2L205: read time       1.9 ms; write time     876.1 ms
+T1L223: read time       1.9 ms; write time     632.5 ms
+T1L214: read time       5.1 ms; write time     546.5 ms
+T1L222: read time     322.7 ms; write time        .6 ms
+
+T1L204: read time     246.8 ms; write time    2855.8 ms
+T2L204: read time       5.7 ms; write time    1890.3 ms
+T2L206: read time       5.0 ms; write time    1156.8 ms
+
+T2L222: read time       8.1 ms; write time    6026.9 ms
+
+T2L221: read time       2.7 ms; write time    6208.7 ms
+T1L201: read time     933.9 ms; write time       2.2 ms
+
+T1L213: read time        .3 ms; write time    8141.5 ms
+
+T2L204: read time     999.9 ms; write time      37.1 ms

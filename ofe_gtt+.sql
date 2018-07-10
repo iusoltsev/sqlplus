@@ -140,7 +140,7 @@ where '&pname' = 'optimizer_features_enable'
 order by 1;
 */
 
-define lover="12.1.0.2"
+define lover="12.1.0.1"
 define hiver="12.2.0.1"
 
 accept lover default '''&lover.''' prompt 'Enter  low version [default: ''&lover.'']: '
@@ -210,4 +210,4 @@ select *
  where upper(parameter_desc) like upper('%&pattern%')
     or upper(parameter_name) like upper('%&pattern%')
 /
-disconnect
+--disconnect

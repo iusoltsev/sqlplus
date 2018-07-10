@@ -11,10 +11,10 @@ col LVL for 999
 col BLOCKING_TREE for a30
 col EVENT for a64
 col WAITS for 999999
-col AVG_WAIT_TIME_MS for 999999
+col AVG_WAIT_TIME_MS for a20
 col SQL_ID for a13
 col EST_WAITS for 999999999
-col EST_AVG_LATENCY_MS for 999999999
+col EST_AVG_LATENCY_MS for a20
 
 select LEVEL as LVL,
        LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,

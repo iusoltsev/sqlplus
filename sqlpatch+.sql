@@ -1,6 +1,6 @@
 --
 -- Create SQL Patch for given sql_id
--- Usage: SQL> @sqlpatch+ arazapyc4cj4g "opt_param(''optimizer_adaptive_features'' ''false'') NO_BIND_AWARE" "TASK-90522-12c"
+-- Usage: SQL> @sqlpatch+ arazapyc4cj4g "opt_param(''''optimizer_adaptive_features'''' ''''false'''') NO_BIND_AWARE" "TASK-90522-12c"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -19,17 +19,35 @@ ACCEPT SQL_ID 	      PROMPT 'Enter SQL_ID (required):'
 ACCEPT SQL_PATCH_TEXT for a512 PROMPT 'Enter SQL_PATCH_TEXT (required):'
 ACCEPT SQL_PATCH_NAME PROMPT 'Enter SQL_PATCH_NAME (required):'
 
+declare
+  v_version SYS.V_$INSTANCE.version%type;
+  v_plsql   varchar2(4096);
 begin
+  select version into v_version from SYS.V_$INSTANCE;
   dbms_sqldiag.drop_sql_patch('&SQL_PATCH_NAME', ignore => TRUE);
   for reco in (--select sql_fulltext from v$sqlarea where sql_id = '&SQL_ID'
 	select nvl(sql_fulltext, sql_text) as SQL_FULLTEXT
-  		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = '&SQL_ID')
+  		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = '&&SQL_ID')
   	full outer join
-       		(select sql_id, sql_fulltext from v$sqlarea where sql_id = '&SQL_ID')
- 	using (sql_id)) loop
-    sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
-                                             hint_text => '&SQL_PATCH_TEXT',
-                                             name      => '&SQL_PATCH_NAME');
+       		(select sql_id, sql_fulltext from v$sqlarea where sql_id = '&&SQL_ID')
+ 	using (sql_id))
+  loop
+    if v_version like '12.2%'
+/*
+       then f := sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
+                                                          hint_text => '&&SQL_PATCH_TEXT',
+                                                          creator   => user,
+                                                          name      => '&&SQL_PATCH_NAME');
+       else sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
+                                                     hint_text => '&&SQL_PATCH_TEXT',
+                                                     name      => '&&SQL_PATCH_NAME');
+*/
+   then v_plsql := 'declare f varchar2(30); begin f := sys.dbms_sqldiag_internal.i_create_patch(sql_text  => :sql_text, hint_text => '''||'&&SQL_PATCH_TEXT'||''', creator => user,name => '''||'&&SQL_PATCH_NAME'||'''); END;';
+--dbms_output.put_line(v_plsql);
+        EXECUTE IMMEDIATE v_plsql USING reco.sql_fulltext;
+   else v_plsql := 'begin sys.dbms_sqldiag_internal.i_create_patch(sql_text => :sql_text, hint_text => '''||'&&SQL_PATCH_TEXT'||''',name => '''||'&&SQL_PATCH_NAME'||'''); END;';
+        EXECUTE IMMEDIATE v_plsql USING reco.sql_fulltext;
+    end if;
   end loop;
 end;
 /
@@ -48,5 +66,24 @@ select sa.sql_id,
 /
 
 @SQLPATCH_HINTS "&SQL_PATCH_NAME"
+
+/* 12.2+
+declare
+  f varchar2(30);
+begin
+  dbms_sqldiag.drop_sql_patch('PAYSYSADMIN-4030', ignore => TRUE);
+  for reco in (--select sql_fulltext from v$sqlarea where sql_id = '&SQL_ID'
+	select nvl(sql_fulltext, sql_text) as SQL_FULLTEXT
+  		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = 'bbb2833tzk9bm')
+  	full outer join
+       		(select sql_id, sql_fulltext from v$sqlarea where sql_id = 'bbb2833tzk9bm')
+ 	using (sql_id)) loop
+          f := sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
+                                                   hint_text   => 'parallel(8)',
+                                                   creator     => user,
+                                                   name => 'PAYSYSADMIN-4030');
+  end loop;
+end;
+*/
 
 set feedback on echo off VERIFY ON serveroutput off

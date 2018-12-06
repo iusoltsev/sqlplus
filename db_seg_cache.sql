@@ -21,9 +21,9 @@ with OBJLIST as
      and object_name in upper(('&&2'))
      and (subobject_name in ('&&3') or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
      and DATA_OBJECT_ID is not null)
-select 'BUFFER CACHE' as AREA,
-        nvl(partition_name,'ALL') as partition_name,
-        nvl(status,'ALL') as STATUS,
+select distinct 'BUFFER CACHE' as AREA,
+        nvl(partition_name,'xALL') as partition_name,
+        nvl(status,'xALL') as STATUS,
         to_char(count(distinct(file# || '#' || block#))) as DISTINCT_BLOCK_COUNT,
         to_char(count(*)) as BLOCK_COUNT
   from V$BH join OBJLIST on objd = DATA_OBJECT_ID

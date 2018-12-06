@@ -45,7 +45,7 @@ connect by prior referenced_object_id = object_id
 
 with sql_obj as
 (select object_owner, object_name
-                       from v$sql_plan
+                       from gv$sql_plan
                       where sql_id = '&&1'
                         and plan_hash_value =
                             nvl('&&2', plan_hash_value)

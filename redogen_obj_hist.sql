@@ -22,7 +22,7 @@ select * from (
 SELECT to_char(min(begin_interval_time),'DD-Mon-YY HH24:MI') || ' - ' ||
        to_char(max(end_interval_time),'DD-Mon-YY HH24:MI') as WHEN,
        nvl(dhso.object_name, 'obj#'||obj#||' dataobj#'||dataobj#) as object_name,
---       dhso.subobject_name,
+       dhso.subobject_name,
        dhso.object_type,
        i.table_name,
        sum(db_block_changes_delta) as db_block_changes,
@@ -37,7 +37,7 @@ SELECT to_char(min(begin_interval_time),'DD-Mon-YY HH24:MI') || ' - ' ||
   GROUP BY --to_char(begin_interval_time,'YY-MM-DD HH24:MI'),
        dhso.object_type,
        nvl(dhso.object_name, 'obj#'||obj#||' dataobj#'||dataobj#),
---       dhso.subobject_name,
+       dhso.subobject_name,
        i.table_name
 , dhss.con_id
   ORDER BY --to_char(begin_interval_time,'YY-MM-DD HH24:MI'),

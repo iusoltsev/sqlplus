@@ -37,6 +37,7 @@ col CURSOR_STATUS for a19
 col DS_LEVEL for a8
 col DOP for a3
 col DOP_REASON for a30
+col PARSING_SCHEMA_NAME a30
 
 pro
 pro --------------------------------------------------------------
@@ -46,6 +47,7 @@ pro SQL_ID=&&1 Shared Pool statistics by PLAN_HASH_VALUE
 pro --------------------------------------------------------------
 
 select s.inst_id                                                                           as INST,
+       s.parsing_schema_name,
        sum(s.EXECUTIONS)                                                                   as EXECS,
        max(s.last_load_time)                                                               as LAST_LOAD_TIME,
        max(to_char(s.last_active_time, 'dd.mm.yyyy hh24:mi:ss'))                           as LAST_ACTIVE_TIME,
@@ -76,6 +78,7 @@ select s.inst_id                                                                
  where s.sql_id = '&1'
    and (s.PLAN_HASH_VALUE = NVL('&&2',s.PLAN_HASH_VALUE) or '&&2' = '0')
 group by s.inst_id,
+         s.parsing_schema_name,
          s.PLAN_HASH_VALUE,
          s.FULL_PLAN_HASH_VALUE,
          s.SQL_PLAN_BASELINE,

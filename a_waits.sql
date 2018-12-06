@@ -8,16 +8,16 @@ set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF
 
 col EVENT for a58
 col PROGRAMS for a60 HEADING 'PROGRAMS BY TYPES                                           '
-col t0 for 999
-col t1 for 999
-col t2 for 999
-col t3 for 999
-col t4 for 999
-col t5 for 999
-col t6 for 999
-col t7 for 999
-col t8 for 999
-col t9 for 999
+col t0 for 99999
+col t1 for 99999
+col t2 for 99999
+col t3 for 99999
+col t4 for 99999
+col t5 for 99999
+col t6 for 99999
+col t7 for 99999
+col t8 for 99999
+col t9 for 99999
 
 select /*+ ordered */
   substr(n.name, 1, 29)  event,

@@ -13,6 +13,8 @@ col ASMM_Status format a11
 col RESIZEABLE format a10
 col DESCRIPTION format a60
 col Status format a12
+col TARGET_SIZE for a15
+col FINAL_SIZE for a15
 
 @@sysdate
 

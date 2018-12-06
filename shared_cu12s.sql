@@ -108,7 +108,7 @@ select *
           from gv$active_session_history
          where sql_id = '&&1'
            and (sql_plan_hash_value = NVL('&&2',sql_plan_hash_value) or '&&2' = '0')
-           and sql_exec_id > 0
+--           and sql_exec_id > 0
          group by inst_id, sql_id, sql_child_number, sql_exec_id, sql_plan_hash_value
 --, sql_full_plan_hash_value
          order by count(distinct sample_id) desc)

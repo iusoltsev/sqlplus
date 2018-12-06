@@ -1,6 +1,6 @@
 --
 -- SQL Plan Statistics from ASH History (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_sqlmon2_hist &sql_id [&plan_hash_value] [&sql_exec_id] [&start_snap_id [&stop_snap_id]]
+-- Usage: SQL> @ash_sqlmon2_hist &sql_id [&plan_hash_value] [&sql_exec_id] [&start_snap_id [&stop_snap_id]] [and...]
 -- by Igor Usoltsev
 -- 
 
@@ -16,7 +16,7 @@ col QBLOCK_NAME for a14
 col PLAN_OPERATION for a75
 col OBJECT_ALIAS for a45
 
-with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR snap_id between '&&4' and nvl('&&5', '&&4')),
+with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR snap_id between '&&4' and nvl('&&5', '&&4') &6),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,

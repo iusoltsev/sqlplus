@@ -22,12 +22,13 @@ select LEVEL as LVL,
 					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
 					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
 				end as BLOCKING_TREE,
---       ash.SQL_ID,
+       ash.SQL_ID,
 --       ash.SQL_OPNAME,
 --       nvl2(ash.XID,'xid',''),
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
 --sql_plan_operation,
 --p1,p2,p3,
+CURRENT_OBJ#,
        count(*) as WAITS_COUNT,
        count(distinct session_id) as SESS_COUNT,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS
@@ -50,12 +51,13 @@ connect by nocycle (abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sam
 					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
 					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
 				end,
---        ash.SQL_ID,
+        ash.SQL_ID,
 --       ash.SQL_OPNAME,
 --       nvl2(ash.XID,'xid',''),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue')
+,CURRENT_OBJ#
 --,p1,p2,p3
 --, sql_plan_operation
- order by instance_number, LEVEL, count(*) desc
+ order by LEVEL, count(*) desc--instance_number, 
 /
 set feedback on echo off VERIFY ON

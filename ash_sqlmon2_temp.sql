@@ -31,7 +31,8 @@ with
    where sql_id = '&&1'
      and (NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0)) or nvl('&&2',1) = 0)
      and (NVL(sql_exec_id, 0)         = nvl('&&3', NVL(sql_exec_id, 0))         or nvl('&&3',1) = 0)
-   group by nvl(qc_session_id, session_id), session_id, session_serial#, sql_id, sql_plan_hash_value, sql_exec_id)
+   group by nvl(qc_session_id, session_id), session_id, session_serial#, sql_id----, sql_plan_hash_value, sql_exec_id
+ )
 , ash1 as (select sample_time,
                  session_id,
                  session_serial#,
@@ -90,12 +91,13 @@ group by sql_id,
          decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_object_id)     as plsql_entry_object_id,    -- for recrsv queries only
          decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_subprogram_id) as plsql_entry_subprogram_id,-- --//--
          sh.sql_id,
-         nvl(sql_plan_hash_value, 0)                         as SQL_PLAN_HASH_VALUE,
-         nvl(sql_plan_line_id, 0)                            as SQL_PLAN_LINE_ID,
-         decode(session_state,'WAITING',event,session_state) as EVENT,
-         count(*)                                            as WAIT_COUNT,
-         min(sample_time)                                    as MIN_SAMPLE_TIME,
-         max(sample_time)                                    as MAX_SAMPLE_TIME
+         nvl(sql_plan_hash_value, 0)                                         as SQL_PLAN_HASH_VALUE,
+         nvl(sql_plan_line_id, 0)                                            as SQL_PLAN_LINE_ID,
+         decode(session_state,'WAITING',event,session_state)                 as EVENT,
+         count(*)                                                            as WAIT_COUNT,
+         min(sample_time)                                                    as MIN_SAMPLE_TIME,
+         max(sample_time)                                                    as MAX_SAMPLE_TIME,
+         count(distinct sql_exec_id)                                         as SQL_EXEC_COUNT
     from ash0 sh, sid_time
    where ((sh.top_level_sql_id = sid_time.sql_id and sh.sql_id != sid_time.sql_id or sh.sql_id is null) and-- recursive SQLs
           sh.session_id       = sid_time.session_id and
@@ -138,10 +140,9 @@ select   sql_id,
          temp_space,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
-   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash
- 				       where sql_plan_hash_value > 0 and sql_exec_id is NOT null)
+   where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
 --     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
-     and (sql_id, plan_hash_value) NOT in (select sql_id, plan_hash_value from gv$sql_plan)
+     and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
   union
 select   sql_id,
          plan_hash_value,
@@ -182,13 +183,12 @@ select   sql_id,
    where (sql_id, plan_hash_value, child_number, inst_id) in
             (select sql_id, plan_hash_value, child_number, inst_id
               from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
-                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0
-and sql_plan_hash_value > 0 and sql_exec_id is NOT null
-                   ) where rn = 1
+                      from ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1
              union all
              select sql_id, plan_hash_value, child_number, inst_id
               from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
                       from ash_recrsv ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1)
+/*
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,
@@ -207,7 +207,9 @@ and sql_plan_hash_value > 0 and sql_exec_id is NOT null
          -2                  as parent_id
     from ash0 left join dba_objects on current_obj# = object_id
    where (sql_id, sql_plan_hash_value) in (select sql_id, sql_plan_hash_value from ash union select sql_id, sql_plan_hash_value from ash_recrsv)
-     and (sql_id, sql_plan_hash_value) not in (select sql_id, plan_hash_value from gv$sql_plan union all select sql_id, plan_hash_value from dba_hist_sql_plan))
+     and (sql_id, sql_plan_hash_value) not in (select sql_id, plan_hash_value from gv$sql_plan union all select sql_id, plan_hash_value from dba_hist_sql_plan)
+*/
+)
 select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not exists yet, sql_plan_hash_value = 0
        sql_id,
        sql_plan_hash_value as plan_hash_value,
@@ -228,12 +230,13 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        ash_stat.WAIT_PROFILE
   from ash_stat
  where (sql_plan_hash_value = 0 and sql_opname not in ('INSERT'))
-    or (sql_opname in ('INSERT') and SQL_EXEC_ID is null)
+    or (sql_opname in ('INSERT') and sql_plan_hash_value = 0 and SQL_EXEC_ID is null)
 UNION ALL
 select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but execution didn't start yet, sql_exec_id is null
        sql_id,              
        sql_plan_hash_value as plan_hash_value,
        ash_stat.sql_plan_line_id as ID,
+--       -1 as ID,
        'sql_plan_hash_value > 0; sql_exec_id is null' as PLAN_OPERATION,
        null as QBLOCK_NAME,
        null as object_alias,
@@ -272,7 +275,8 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
   FROM pt
-  left join ash_stat
+----  left -- 2exclude empty
+ join ash_stat
   on --pt.parent_id       = -2 and
      pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
      pt.sql_id          = ash_stat.sql_id and
@@ -336,7 +340,8 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
   left join ash_stat_recrsv ash_stat
   on pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
      pt.sql_id          = ash_stat.sql_id and
-    (pt.plan_hash_value = ash_stat.sql_plan_hash_value or ash_stat.sql_plan_hash_value = 0)
+    (pt.plan_hash_value = ash_stat.sql_plan_hash_value ----or ash_stat.sql_plan_hash_value = 0
+    )
   left join dba_procedures p on ash_stat.plsql_entry_object_id     = p.object_id and
                                 ash_stat.plsql_entry_subprogram_id = p.subprogram_id
   where pt.sql_id in (select sql_id from ash_stat_recrsv)
@@ -344,7 +349,7 @@ CONNECT BY PRIOR pt.id = pt.parent_id
        and PRIOR pt.sql_id = pt.sql_id
        and PRIOR pt.plan_hash_value = pt.plan_hash_value
  START WITH pt.id = 0
-UNION ALL
+/*UNION ALL
 select 'Recurs.waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
        '',
        0 as plan_hash_value,
@@ -365,11 +370,11 @@ select 'Recurs.waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
        ash_stat.WAIT_PROFILE
   from ash_stat_recrsv ash_stat
  where sql_id is null
-   and ash_stat.plsql_entry_object_id is null
+   and ash_stat.plsql_entry_object_id is null*/
 UNION ALL
-select 'PL/SQL' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
-       '',
-       0 as plan_hash_value,
+select 'OtherRec.Waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
+       sql_id,
+       ash_stat.sql_plan_hash_value as plan_hash_value,
        ash_stat.sql_plan_line_id,
        p.owner ||' '|| p.object_name||'.'||p.procedure_name as PLAN_OPERATION,
        null,
@@ -386,12 +391,12 @@ select 'PL/SQL' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
   from ash_stat_recrsv ash_stat
-  join dba_procedures p on ash_stat.plsql_entry_object_id     = p.object_id and
+  left join dba_procedures p on ash_stat.plsql_entry_object_id     = p.object_id and
                                 ash_stat.plsql_entry_subprogram_id = p.subprogram_id
  where sql_id is null
 UNION ALL
 select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
-       '',
+       '&&1',
        0 as plan_hash_value,
        to_number(null) as sql_plan_line_id,
        'ASH fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
@@ -436,5 +441,48 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
          (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
      and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
   group by sql_id, sql_plan_hash_value
+UNION ALL
+select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
+       sql_id,
+       to_number(null) as sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || sum(WAIT_COUNT) || '; Dist.Execs: ' || max(SQL_EXEC_COUNT) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       sum(WAIT_COUNT) as ASH_ROWS,
+       null as WAIT_PROFILE
+  from ash_recrsv
+   where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
+  group by sql_id
+UNION ALL
+select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
+       '',
+       to_number(null) as sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || sum(WAIT_COUNT) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       sum(WAIT_COUNT) as ASH_ROWS,
+       null as WAIT_PROFILE
+  from ash_recrsv
+   where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
 /
 set feedback on VERIFY ON timi on

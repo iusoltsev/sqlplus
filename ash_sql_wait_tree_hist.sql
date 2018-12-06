@@ -42,9 +42,9 @@ select /*+ rule*/ LEVEL as LVL,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
-       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
-o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
+--       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+--            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
+--o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --       p2,
        count(1) as WAITS_COUNT,
        count(distinct sql_exec_id) as EXECS_COUNT,
@@ -61,8 +61,9 @@ max(sample_time) as max_stime,
        sql_ID
       ,sql_plan_hash_value
       ,sql_opname
---       ,sql_plan_line_ID
---       ,sql_plan_operation||' '||sql_plan_options
+       ,sql_plan_line_ID
+       ,sql_plan_operation||' '||sql_plan_options
+, in_parse, in_hard_parse, in_sql_execution, in_plsql_execution
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9))) as sql_text
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))) as sql_text
   from --gv$active_session_history
@@ -95,20 +96,21 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
        wait_class,
-       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
-o.owner||'.'||o.object_name||'.'||o.subobject_name,
+--       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+--            else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+--o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          p2,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
 --          p2.owner||'.'||p2.object_name||'.'||p2.procedure_name,
-          o.owner||'.'||o.object_name||'.'||o.subobject_name,
+--          o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          blocking_session_status||' i#'||blocking_inst_id,
           sql_ID
           ,sql_plan_hash_value
 , '&&SYS_DATE'
 ,sql_opname
---          ,sql_plan_line_ID
---          ,sql_plan_operation||' '||sql_plan_options
+, in_parse, in_hard_parse, in_sql_execution, in_plsql_execution
+          ,sql_plan_line_ID
+          ,sql_plan_operation||' '||sql_plan_options
 --          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9)))
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))
  having count(distinct sample_id) > nvl('&4', 0)

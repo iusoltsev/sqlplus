@@ -17,12 +17,12 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201806062045
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201811281723
  s &3
 --		where sample_time > sysdate-1/24
 		)
 select LEVEL as LVL,
-       inst_id,
+----       inst_id,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
         case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
@@ -39,6 +39,7 @@ select LEVEL as LVL,
             when event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
             else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
 */
+o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
 in_parse, in_hard_parse, in_sql_execution, in_plsql_execution,
 --xid,
@@ -52,9 +53,9 @@ nvl2(sql_exec_id, 1, 0) as sql_exec_id,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS,
 --round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)) as est_waits, -- http://www.nocoug.org/download/2013-08/NOCOUG_201308_ASH_Architecture_and_Advanced%20Usage.pdf
 --round(sum(1000)/decode(round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)),0,1,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)))) as est_avg_latency_ms,
-       count(distinct inst_id||session_id||session_serial#) as SESS_COUNT,
+----       count(distinct inst_id||session_id||session_serial#) as SESS_COUNT,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
---       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
+       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
        blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime
@@ -80,9 +81,9 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
                     abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) < 1/2)
                 and ash.SESSION_ID      = prior ash.BLOCKING_SESSION
 --              and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
-                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
+----                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
-          inst_id,
+----          inst_id,
 --          BLOCKING_INST_ID,
         case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
@@ -98,6 +99,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
             when event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
              else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
 */
+o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
 in_parse, in_hard_parse, in_sql_execution, in_plsql_execution,
 --xid,
@@ -106,7 +108,7 @@ in_parse, in_hard_parse, in_sql_execution, in_plsql_execution,
 --          p2,
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
---          o.owner||'.'||o.object_name||'.'||o.subobject_name,
+          o.owner||'.'||o.object_name||'.'||o.subobject_name,
           blocking_session_status||' i#'||blocking_inst_id
 ,sql_ID
 ,top_level_sql_id

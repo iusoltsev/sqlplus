@@ -4,7 +4,7 @@
 --SQL> @sga
 --
 
-set feedback off heading on timi off pages 100 lines 200
+set feedback off heading on timi off pages 100 lines 500
 
 col name format a40
 col object_name format a100
@@ -15,7 +15,8 @@ col DESCRIPTION format a60
 col Status format a12
 col TARGET_SIZE for a15
 col FINAL_SIZE for a15
-
+col NAMESPACE for a40
+col TYPE      for a40
 @@sysdate
 
 select decode(value,0,'ASMM:off','ASMM:on') as ASMM_Status
@@ -138,7 +139,30 @@ WHERE ksmsslen > 0
 GROUP BY ROLLUP ( ksmdsidx )
 ORDER BY subpool ASC
 /
-
+SELECT 
+    subpool
+  , name
+  , SUM(bytes)                  
+  , ROUND(SUM(bytes)/1048576,2) MB
+FROM (
+    SELECT
+        'shared pool ('||DECODE(TO_CHAR(ksmdsidx),'0','0 - Unused',ksmdsidx)||'):'      subpool
+      , ksmssnam      name
+      , ksmsslen      bytes
+    FROM 
+        x$ksmss
+    WHERE
+        ksmsslen > 0
+    AND LOWER(ksmssnam) LIKE LOWER('%')
+)
+GROUP BY
+    subpool
+  , name
+having SUM(bytes) > 2e7 -- random
+ORDER BY
+    subpool    ASC
+  , SUM(bytes) DESC
+/
 /*
 SELECT 
     subpool

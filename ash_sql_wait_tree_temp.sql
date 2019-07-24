@@ -17,7 +17,7 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201811281723
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from system.ash_201904291206--SYSTEM.ASH_201903151853--
  s &3
 --		where sample_time > sysdate-1/24
 		)
@@ -50,6 +50,7 @@ nvl2(sql_exec_id, 1, 0) as sql_exec_id,
 --       p3,
        count(1) as WAITS_COUNT,
        count(distinct sql_exec_id) as EXECS_COUNT,
+       count(distinct session_id) as SESS_COUNT,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS,
 --round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)) as est_waits, -- http://www.nocoug.org/download/2013-08/NOCOUG_201308_ASH_Architecture_and_Advanced%20Usage.pdf
 --round(sum(1000)/decode(round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)),0,1,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)))) as est_avg_latency_ms,

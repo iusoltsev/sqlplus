@@ -30,13 +30,14 @@ select LEVEL as LVL,
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
+          when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
---       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))) as P1RAW,
+       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))) as P1RAW,
        o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --case when session_state='WAITING' and p1text='handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
 In_hard_Parse,
@@ -47,8 +48,9 @@ sql_child_number,
 --machine,
 --program,
 --module,
---top_level_call_name,
-       p2text, p2,
+top_level_call_name,
+--       p1text, p1,
+--       p2text, p2,
 --       p3,
        count(1) as WAITS_COUNT,
        count(distinct sql_exec_id) as EXECS_COUNT,
@@ -78,7 +80,7 @@ max(sample_time) as max_stime,
  start with &1
 connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or 
                     trunc(ash.sample_time) = trunc(prior ash.sample_time) and
-                    abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) < 1/2)
+                    abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) < 1)
                 and ash.SESSION_ID      = prior ash.BLOCKING_SESSION
 --              and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
                 and ash.INST_ID         = prior ash.BLOCKING_INST_ID
@@ -91,6 +93,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
+          when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end,
@@ -99,20 +102,21 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           wait_class,
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
---       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))),
-       o.owner||'.'||o.object_name||'.'||o.subobject_name,
+       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))),
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 sql_adaptive_plan_resolved,
 sql_child_number,
---       o.owner||'.'||o.object_name||'.'||o.subobject_name,
+       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --case when session_state='WAITING' and p1text='handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end,
+--       p1text, p1,
 In_hard_Parse,
 In_Parse,
 In_Sql_Execution,
 --machine,
 --program,
 --module,
---top_level_call_name,
-       p2text, p2,
+top_level_call_name,
+--       p2text, p2,
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
           blocking_session_status||' i#'||blocking_inst_id,

@@ -5,11 +5,11 @@
 -- by Igor Usoltsev
 --
 
-set feedback on heading on timi off pages 100 lines 500 echo off  VERIFY OFF
+set feedback on heading on timi off pages 500 lines 512 echo off  VERIFY OFF
 set pages 100
 
-col phv_&&2 for a200
-col phv_&&4 for a200
+col phv_&&2 for a512
+col phv_&&4 for a512
 
 pro --------------------------------
 

@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait_tree_hist_temp "event = 'log file sync'" 111 113 10
+-- Usage: SQL> @ash_sql_wait_tree_hist_temp "SYSTEM.ASH_201901151747 s where sample_time between trunc(sysdate)+16/24+40/24/60 and trunc(sysdate)+16/24+52/24/60" "event = 'log file sync'" 10
 -- Igor Usoltsev
 --
 
@@ -21,7 +21,7 @@ col DATA_OBJECT     for a50
 col MODULE     for a40
 col sql_opname for a25
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from SYSTEM.ASH_201711301351 s)--dba_hist_active_sess_history s where '&&2' is null OR snap_id between '&&2' and nvl('&&3', '&&2'))
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from &1) --SYSTEM.ASH_201901151747 s)--dba_hist_active_sess_history s where '&&2' is null OR snap_id between '&&2' and nvl('&&3', '&&2'))
 select LEVEL as LVL,
        instance_number,
 --       BLOCKING_INST_ID,
@@ -61,7 +61,7 @@ max(sample_time) as max_stime,
        left join dba_procedures   p2  on plsql_object_id          = p2.object_id
                                      and plsql_subprogram_id      = p2.subprogram_id
        left join dba_objects      o  on ash.current_obj# = o.object_id
- start with &1
+ start with &2
 connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or 
                     trunc(ash.sample_time) = trunc(prior ash.sample_time) and
                     abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) <= 1)
@@ -90,7 +90,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           ,sql_plan_line_ID
           ,sql_plan_operation||' '||sql_plan_options
           ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9)))
- having count(distinct sample_id) > nvl('&4', 0)
+ having count(distinct sample_id) > nvl('&3', 0)
  order by LEVEL, count(1) desc
 /*
 with ash as (select --+ materialize

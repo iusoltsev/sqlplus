@@ -1,5 +1,5 @@
 -- Baseline hints list for Oracle 12c
--- Usage: SQL> @bl12_hints SQL_PLAN_acg49cdw0088v4085ecd2
+-- Usage: SQL> @bl12_hints SQL_PLAN_b5chachwypy1qe5963086 "LEADING(@"SEL$0AE7F13E""
 -- use SPB12.SQL for 11g and 12c Baselines
 --
 set verify off feedback off timi off lines 500
@@ -15,6 +15,7 @@ select substr(extractvalue(value(d), '/hint'), 1, 512) as outline_hints
                     and o.signature = op.signature
                     and o.plan_id   = op.plan_id
                     and op.other_xml is not null)) d
+where substr(extractvalue(value(d), '/hint'), 1, 512) like upper('%&2%')
 /
 SELECT /*+ opt_param('parallel_execution_enabled', 'false') */
 '   sql_profile:     ' || extractvalue(xmlval, '/*/info[@type = "sql_profile"]')||'

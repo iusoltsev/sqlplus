@@ -1,8 +1,8 @@
 --
 -- SQL child cursor generation properties for 12.1.0.1+ (quick, w/o XML functions)
 -- Usage: 
--- SQL> @shared_cu12_noxml &sql_id [&phv]
---                                  ^PLAN_HASH_VALUE
+-- SQL> @shared_cu12 &sql_id [&phv]                       [&top_sql_exec_from_ash]
+--                            ^PLAN_HASH_VALUE, 0=All PHV
 --
 
 set feedback on 1 heading on timi off pages 200 lines 500 echo off  VERIFY OFF
@@ -60,6 +60,7 @@ select s.inst_id    as INST,
        s.object_status as CURSOR_STATUS,
        s.PLAN_HASH_VALUE,
        s.FULL_PLAN_HASH_VALUE,
+       s.optimizer_mode as CBO_MODE,
        s.optimizer_cost,
        s.child_number as CHILD,
        s.IS_BIND_SENSITIVE as "BIND_SENSE",
@@ -162,6 +163,6 @@ select * from (select inst_id,
                , REGEXP_SUBSTR(client_id, '.+\#'))
                group by inst_id, sql_id, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id
                order by count(distinct sample_time) desc)
-where rownum <= 25
+where rownum <= NVL('&3',25)
 /
 set feedback on VERIFY ON

@@ -17,7 +17,14 @@ col EST_WAITS for 999999999
 col EST_AVG_LATENCY_MS for a20
 
 select LEVEL as LVL,
-       LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
+--       LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
+       LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
+				case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(FOREGROUND)'
+					when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
+					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+					when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
+					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
+				end as BLOCKING_TREE,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
 wait_class,
        count(*) as WAITS_COUNT,
@@ -31,7 +38,14 @@ wait_class,
 connect by nocycle prior ash.SAMPLE_ID = ash.SAMPLE_ID
        and ash.SESSION_ID = prior ash.BLOCKING_SESSION
  group by LEVEL,
-          LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')),
+--          LPAD(' ',(LEVEL-1)*2)||decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]{3}'), nvl2(qc_session_id, 'PX', 'FOREGROUND')),
+       LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
+				case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(FOREGROUND)'
+					when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
+					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+					when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
+					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
+				end,
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
 wait_class
  order by LEVEL, count(*) desc

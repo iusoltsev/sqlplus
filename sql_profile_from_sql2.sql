@@ -1,6 +1,7 @@
 --
 -- SQL Profile category Default creation by DBMS_SQLTUNE.IMPORT_SQL_PROFILE, including import between SQL_ID's
--- Usage: SQL> @sql_profile_from_sql2 &sql_id_source &plan_hash_value_source &sql_id_target "SQL_Profile_name" "SQL_Profile_desc"
+-- Usage: SQL> @sql_profile_from_sql2 &sql_id_source    &plan_hash_value_source &sql_id_target    "SQL_Profile_name" "SQL_Profile_desc"
+--                                    ^^^ sourse SQL_ID ^^^source PHV           ^^^ target SQL_ID
 --
 set verify off timi off lines 500
 col HINT for a400

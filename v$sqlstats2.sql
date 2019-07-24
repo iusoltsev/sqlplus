@@ -47,8 +47,10 @@ pro SQL_ID=&&1 Shared Pool statistics by PLAN_HASH_VALUE
 pro --------------------------------------------------------------
 
 select s.inst_id                                                                           as INST,
-       s.parsing_schema_name,
+       s.parsing_schema_name                                                               as PARSING_SCHEMA_NAME,
        sum(s.EXECUTIONS)                                                                   as EXECS,
+       s.PLAN_HASH_VALUE,
+       s.FULL_PLAN_HASH_VALUE,
        max(s.last_load_time)                                                               as LAST_LOAD_TIME,
        max(to_char(s.last_active_time, 'dd.mm.yyyy hh24:mi:ss'))                           as LAST_ACTIVE_TIME,
        round(sum(s.elapsed_time)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS)))          as ELA_PER_EXEC,
@@ -62,8 +64,6 @@ select s.inst_id                                                                
        round(sum(s.PLSQL_EXEC_TIME)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS)))       as PLSQL_PER_EXEC,
        round(sum(s.FETCHES)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS)))               as FETCH_PER_EXEC,
        round(sum(s.ROWS_PROCESSED)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS)))        as ROWS_PER_EXEC,
-       s.PLAN_HASH_VALUE,
-       s.FULL_PLAN_HASH_VALUE,
        round(avg(s.optimizer_cost))                                                        as AVG_CBO_COST,
        count(distinct s.child_number)                                                      as CHILDS,
        max(s.IS_BIND_SENSITIVE)                                                            as "BIND_SENSE",

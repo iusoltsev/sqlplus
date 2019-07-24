@@ -112,7 +112,8 @@ to_char(signature,'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 0),'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'99999999999999999999')
   from spm bl, dba_hist_sqltext sa
- where dbms_lob.compare(bl.sql_text, sa.sql_text) = 0
+ where --dbms_lob.compare(bl.sql_text, sa.sql_text) = 0
+       DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text)
    and sa.sql_id = '&&1'
 --   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
 /

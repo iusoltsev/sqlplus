@@ -13,7 +13,8 @@ col EVENT for a64
 col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col SQL_ID for a13
-col SQL_OPNAME for a20
+col SQL_OPNAME for a60
+col WAIT_CLASS for a40
 
 with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from gv$active_session_history s &3
 		)
@@ -49,6 +50,8 @@ sql_opname,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS
 ,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)) as est_waits -- http://www.nocoug.org/download/2013-08/NOCOUG_201308_ASH_Architecture_and_Advanced%20Usage.pdf
 ,round(sum(1000)/round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 1 end))) as est_avg_latency_ms
+,min(sample_time) as min_sample_time
+,max(sample_time) as max_sample_time
   from ash
 -- where session_state = 'WAITING'
  start with &&1

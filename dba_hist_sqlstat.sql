@@ -1,7 +1,16 @@
 --
 -- short SQL execution history
--- SQL> @dba_hist_sqlstat "sql_id = '8d49sjc17xwuc' and snap_id between 86116 and 86260 and executions_delta > 0"
+-- SQL> @dba_hist_sqlstat "sql_id = '8d49sjc17xwuc' and snap_id between 86116 and 86260 and (elapsed_time_delta > 0 and executions_delta is not null)"
 --
+col ELA_PER_EXEC for 999,999,999,999
+col CPU_PER_EXEC for 999,999,999,999
+col GETS_PER_EXEC for 999,999,999,999
+col IOWAITS_PER_EXEC for 999,999,999,999
+col CLWAITS_PER_EXEC_uS for 999,999,999,999
+col APWAITS_PER_EXEC for 999,999,999,999
+col CCWAITS_PER_EXEC for 999,999,999,999
+
+
 select 
     instance_number as inst,
     (snap_id - 1) as Begin_Snap_id,
@@ -11,6 +20,7 @@ select
     st.rows_processed_delta as rows_processed,
     st.sql_id,
     st.plan_hash_value as plan,
+    st.SQL_PROFILE,
     st.optimizer_cost as cost,
     round(st.parse_calls_delta/decode(st.executions_delta,0,1,st.executions_delta))                   as PARSE_PER_EXEC,
     round(st.elapsed_time_delta/decode(st.executions_delta,0,1,st.executions_delta))                    as ELA_PER_EXEC,
@@ -37,6 +47,7 @@ from dba_hist_sqlstat st join dba_hist_snapshot sn using(snap_id,instance_number
 	&&1
 --   and snap_id between &&2 and nvl('&&3', &&2)
 --   and executions_delta > 0
+and (st.elapsed_time_delta > 0 and st.executions_delta is not null)
 order by snap_id, instance_number
 /*
 select to_char(sql_exec_start,'dd.mm.yyyy hh24:mi:ss')           as SQL_EXEC_START,

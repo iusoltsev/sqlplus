@@ -34,6 +34,7 @@ select
     extractvalue(xmlval, '/*/info[@type = "plan_hash_full"]') as PHV_full, 
     extractvalue(xmlval, '/*/info[@type = "plan_hash"]')      as PHV,
     plan_id                                                   as PHV2
+, description
 from
  (select xmltype(other_xml) as xmlval,
          bl.sql_handle,
@@ -50,12 +51,17 @@ from
          bl.reproduced,
          bl.autopurge,
          op.plan_id
+, description
                    from dba_sql_plan_baselines bl
                    left join sys.sqlobj$ o      on o.name = bl.plan_name and o.signature = bl.signature and o.obj_type = 2
                    left join sys.sqlobj$plan op on op.obj_type = 2 and o.signature = op.signature and o.plan_id   = op.plan_id and op.other_xml is not null
-  where bl.SIGNATURE = (select DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(SQL_TEXT) as SIGNATURE from dba_hist_sqltext where sql_id = '&&1'
-                        union
-                        select distinct EXACT_MATCHING_SIGNATURE as SIGNATURE from gv$sqlarea where sql_id = '&&1'))
+--  where bl.SIGNATURE = (select DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(SQL_TEXT) as SIGNATURE from dba_hist_sqltext where sql_id = '&&1'
+--                        union
+--                        select distinct EXACT_MATCHING_SIGNATURE as SIGNATURE from gv$sqlarea where sql_id = '&&1'))
+  where bl.SIGNATURE = (select distinct SIGNATURE from (--select DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(SQL_TEXT) as SIGNATURE from dba_hist_sqltext where sql_id = '&&1'
+--                                                        union
+                                                        select distinct EXACT_MATCHING_SIGNATURE as SIGNATURE from gv$sqlarea where sql_id = '&&1'
+)))
  order by 10, 5 -- cast(last_modified as date)
 /
 set feedback on echo off VERIFY ON serveroutput off

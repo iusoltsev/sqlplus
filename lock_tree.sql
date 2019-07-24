@@ -46,7 +46,8 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
 alter session set "_with_subquery"=optimizer
 */
 with
- LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where block > 0 or REQUEST > 0)
+ LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where (block > 0 or REQUEST > 0) and type not in ('MR','AE')
+ )
 ,S        as (select /*+ MATERIALIZE*/ s.* from gv$session s)
 ,BLOCKERS as
          (select distinct L1.inst_id, L1.sid, L1.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)

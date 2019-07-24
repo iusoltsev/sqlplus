@@ -39,11 +39,12 @@ select /*+ rule*/ LEVEL as LVL,
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,15) else module end as MODULE,
-       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
+--       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
---       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
---            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
+       top_level_call_name,
+       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            else o.owner||'.'||o.object_name||'.'||o.subobject_name end as DATA_OBJECT_p1raw,
 --o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --       p2,
        count(1) as WAITS_COUNT,
@@ -54,16 +55,18 @@ select /*+ rule*/ LEVEL as LVL,
 --round(sum(1000)/decode(round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)),0,1,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)))) as est_avg_latency_ms,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_ENTRY_OBJECT_ID,
 --       p2.owner||'.'||p2.object_name||'.'||p2.procedure_name as PLSQL_OBJECT_ID,
---       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
+       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --       blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime,
+       nvl(plsql_entry_object_id, plsql_object_id)||'.'||nvl(plsql_entry_subprogram_id, plsql_subprogram_id) as PLSQL_OBJECT_ID,
        sql_ID
       ,sql_plan_hash_value
       ,sql_opname
        ,sql_plan_line_ID
        ,sql_plan_operation||' '||sql_plan_options
 , in_parse, in_hard_parse, in_sql_execution, in_plsql_execution
+      ,top_level_sql_id
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9))) as sql_text
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))) as sql_text
   from --gv$active_session_history
@@ -93,24 +96,27 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --        case when module not like 'oracle%' then substr(module,1,15) else module end,
-          REGEXP_SUBSTR(client_id, '.+\#'),
+--          REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
        wait_class,
---       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
---            else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
---o.owner||'.'||o.object_name||'.'||o.subobject_name,
+       top_level_call_name,
+       case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
+       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          p2,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
 --          p2.owner||'.'||p2.object_name||'.'||p2.procedure_name,
 --          o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --          blocking_session_status||' i#'||blocking_inst_id,
-          sql_ID
-          ,sql_plan_hash_value
-, '&&SYS_DATE'
-,sql_opname
-, in_parse, in_hard_parse, in_sql_execution, in_plsql_execution
-          ,sql_plan_line_ID
-          ,sql_plan_operation||' '||sql_plan_options
+       nvl(plsql_entry_object_id, plsql_object_id)||'.'||nvl(plsql_entry_subprogram_id, plsql_subprogram_id),
+       sql_ID
+      ,sql_plan_hash_value
+      ,'&&SYS_DATE'
+      ,sql_opname
+      ,in_parse, in_hard_parse, in_sql_execution, in_plsql_execution
+      ,top_level_sql_id
+      ,sql_plan_line_ID
+      ,sql_plan_operation||' '||sql_plan_options
 --          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,100),chr(10)),chr(13)),chr(9)))
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))
  having count(distinct sample_id) > nvl('&4', 0)

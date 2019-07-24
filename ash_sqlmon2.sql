@@ -1,6 +1,6 @@
 --
 -- SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')"
+-- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')" r
 -- 
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
@@ -105,6 +105,7 @@ group by sql_id,
           sh.session_serial#  = sid_time.session_serial# and
           nvl(sh.qc_session_id, sh.session_id) = sid_time.qc_session_id and
           sh.sample_time between sid_time.MIN_SQL_EXEC_TIME and sid_time.MAX_SQL_EXEC_TIME)
+AND upper('&5')='R'
    group by sh.sql_id, nvl(sql_plan_hash_value, 0), nvl(sql_plan_line_id, 0), decode(session_state,'WAITING',event,session_state),
             decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_object_id),
             decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_subprogram_id))

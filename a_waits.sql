@@ -7,6 +7,7 @@
 set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF
 
 col EVENT for a58
+col WAIT_CLASS for a15
 col PROGRAMS for a60 HEADING 'PROGRAMS BY TYPES                                           '
 col t0 for 99999
 col t1 for 99999
@@ -21,6 +22,7 @@ col t9 for 99999
 
 select /*+ ordered */
   substr(n.name, 1, 29)  event,
+  n.WAIT_CLASS,
   t0,
   t1,
   t2,
@@ -52,6 +54,7 @@ where
   lower(n.name) not like '%idle%' and  
   lower(n.name) not like '%sleep%' and  
   n.name not like '%VKTM%' and
+n.WAIT_CLASS not in ('Idle') and
   e0 (+) = n.name and
   e1 (+) = n.name and
   e2 (+) = n.name and

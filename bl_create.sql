@@ -1,7 +1,7 @@
 --
 -- [Re]create SPM baseline from cursor in Shared Pool
 -- Usage: SQL> @bl_create g1jratsw6ujcz 2375777697 "Halty''s task"
--- http://iusoltsev.wordpress.com
+-- 2add dbms_spm.load_plans_from_awr 12.2?
 --
 
 set echo off feedback off heading on VERIFY OFF serveroutput on

@@ -26,7 +26,9 @@ SELECT to_char(min(begin_interval_time),'DD-Mon-YY HH24:MI') || ' - ' ||
        dhso.object_type,
        i.table_name,
        sum(db_block_changes_delta) as db_block_changes,
-       to_char(round((RATIO_TO_REPORT(sum(db_block_changes_delta)) OVER ())*100,2),'99.00') as REDO_PERCENT
+--       to_char(
+round((RATIO_TO_REPORT(sum(db_block_changes_delta)) OVER ())*100,2)--,'99.00')
+ as REDO_PERCENT
 , dhss.con_id
   FROM dba_hist_seg_stat dhss
        join dba_hist_snapshot dhs using(snap_id, instance_number)
@@ -60,7 +62,9 @@ select
              dhso.object_type,
              i.table_owner || nvl2(i.table_name,'.','') || i.table_name as table_name,
              sum(db_block_changes_delta) as db_block_changes,
-             to_char(round((RATIO_TO_REPORT(sum(db_block_changes_delta)) OVER ())*100,2),'99.00') as REDO_PERCENT
+--             to_char(
+round((RATIO_TO_REPORT(sum(db_block_changes_delta)) OVER ())*100,2)--,'99.00')
+ as REDO_PERCENT
       , dhss.con_id
         FROM dba_hist_seg_stat dhss
              join dba_hist_snapshot dhs using(snap_id, instance_number)

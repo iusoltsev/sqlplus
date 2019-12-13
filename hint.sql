@@ -42,7 +42,8 @@ select name,
       ,decode(bitand(target_level,8),0,'no','yes') Join_level
   from v$sql_hint hi
      , fh
- where hi.name like '%'||upper('&&1')||'%'
+ where (hi.name like '%'||upper('&&1')||'%'
+        or path like '%'||upper('&&1')||'%')
    and hi.sql_feature = fh.sql_feature
 order by 1
 /

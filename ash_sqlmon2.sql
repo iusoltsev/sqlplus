@@ -15,8 +15,10 @@ col WAIT_PROFILE for a200
 col LAST_PLSQL for a45
 col ID for 9999
 col OBJECT_OWNER for a16
-col OBJECT_NAME for a30
+col OBJECT_NAME for a60
 col QBLOCK_NAME for a15
+col ACCESS_PREDICATES for a60
+col FILTER_PREDICATES for a60
 
 with
  ash0 as (select * from Gv$active_session_history &&4),
@@ -135,7 +137,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name,
+         object_name
+||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
+) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -155,6 +160,7 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -174,7 +180,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name,
+         object_name
+||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
+) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -190,7 +199,6 @@ select   sql_id,
              select sql_id, plan_hash_value, child_number, inst_id
               from (select p.sql_id,p.plan_hash_value,p.child_number,p.inst_id,ROW_NUMBER() OVER(PARTITION BY p.sql_id, p.plan_hash_value ORDER BY p.timestamp) as rn
                       from ash_recrsv ash join gv$sql_plan p on ash.sql_id = p.sql_id and ash.sql_plan_hash_value = p.plan_hash_value and p.id = 0) where rn = 1)
-/*
   union                                          -- for plans not in dba_hist_sql_plan not v$sql_plan (read-only standby for example)
   select distinct 
          sql_id,
@@ -202,6 +210,8 @@ select   sql_id,
          ''                  as object_alias,
          owner               as object_owner,
          object_name,
+         ''                  as access_predicates,
+         ''                  as filter_predicates,
          null                as cardinality,
          null                as cost,
          null                as bytes,
@@ -210,7 +220,6 @@ select   sql_id,
     from ash0 left join dba_objects on current_obj# = object_id
    where (sql_id, sql_plan_hash_value) in (select sql_id, sql_plan_hash_value from ash union select sql_id, sql_plan_hash_value from ash_recrsv)
      and (sql_id, sql_plan_hash_value) not in (select sql_id, plan_hash_value from gv$sql_plan union all select sql_id, plan_hash_value from dba_hist_sql_plan)
-*/
 )
 select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not exists yet, sql_plan_hash_value = 0
        sql_id,
@@ -221,6 +230,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        null as object_alias,
        null as object_owner,
        null as object_name,
+ '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -244,6 +254,7 @@ select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but 
        null as object_alias,
        null as object_owner,
        null as object_name,
+ '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -267,6 +278,7 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -299,6 +311,7 @@ SELECT case when pt.id =0 then 'Main Query' -- direct SQL plan+stats
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ pt.access_predicates, pt.filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -329,6 +342,7 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -383,6 +397,7 @@ select 'OtherRec.Waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stat
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -406,6 +421,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -429,6 +445,7 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -453,6 +470,7 @@ select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -475,6 +493,7 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,

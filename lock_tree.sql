@@ -6,7 +6,8 @@
 
 set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
 
-col BLOCKING_TREE for a30
+col BLOCKING_TREE for a60
+col TYPE          for a4
 col SQL_TEXT      for a100
 col EVENT         for a40 head "Event name"
 col USER_CLIENT   for a60
@@ -46,17 +47,18 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
 alter session set "_with_subquery"=optimizer
 */
 with
- LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where (block > 0 or REQUEST > 0) and type not in ('MR','AE')
+ LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock --where inst_id in (select sys_context('USERENV', 'INSTANCE') from dual) --and (block > 0 or REQUEST > 0) and type not in ('MR','AE')
  )
-,S        as (select /*+ MATERIALIZE*/ s.* from gv$session s)
+--select * from LOCKS
+,S        as (select /* MATERIALIZE*/ s.* from gv$session s)
 ,BLOCKERS as
-         (select distinct L1.inst_id, L1.sid, L1.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)
+         (select /*+ MATERIALIZE*/ distinct L1.inst_id, L1.sid, L1.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)
             from LOCKS L1, LOCKS L2
            where L1.block > 0
              and L1.ID1 = L2.ID1
              and L1.ID2 = L2.ID2
              and L2.REQUEST > 0)
-,WAITERS  as (select inst_id, sid, con_id from S where blocking_session is not null or blocking_instance is not null
+,WAITERS  as (select /*+ MATERIALIZE*/ inst_id, sid, con_id from S where blocking_session is not null or blocking_instance is not null
               union
               select distinct L2.inst_id, L2.sid, L2.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L2.KADDR)
                from LOCKS L1, LOCKS L2
@@ -66,8 +68,9 @@ with
                 and L2.REQUEST > 0)
 --select inst_id, sid, con_id from BLOCKERS minus select inst_id, sid, con_id from WAITERS
 --select s.* from s join WAITERS l on s.inst_id = l.inst_id and s.sid = l.sid
-select-- opt_param('_connect_by_use_union_all' 'false')
+select--+ opt_param('_optimizer_generate_transitive_pred','FALSE') --use_nl(o) use_nl(o2) monitor --opt_param('_connect_by_use_union_all' 'false')
 --'&&SYS_DATE' as SDATE,
+distinct
  LPAD(' ', (LEVEL - 1) * 2) || 'INST#' || s.inst_id || ' SID#' || s.sid || ' CON#' || s.con_id as BLOCKING_TREE,
 l.type,
 s.LOCKWAIT,
@@ -75,7 +78,7 @@ l.KADDR,
  s.program,
  substr(s.USERNAME || ' ' || s.CLIENT_IDENTIFIER,1,60) as USER_CLIENT,
  EVENT,
- object_type || ' ' || owner ||'.'|| object_name req_object,
+ NVL(o.object_type, o2.object_type) || ' ' || NVL(o.owner, o2.owner) ||'.'|| NVL(o.object_name, o2.object_name) req_object,
  last_call_et,
  seconds_in_wait as SECS_IN_WAIT,
  blocking_session_status as BLOCK_SESSTAT,
@@ -105,7 +108,8 @@ l.KADDR,
   left join LOCKS l on s.inst_id = l.inst_id and s.sid = l.sid and s.LOCKWAIT = l.KADDR--UTL_RAW.CAST_TO_RAW(s.LOCKWAIT) = l.KADDR
 --  left join gv$sqlarea sa1 on s.sql_id = sa1.sql_id and s.inst_id =  sa1.inst_id and s.con_id =  sa1.con_id
 --  left join gv$sqlarea sa2 on s.prev_sql_id = sa2.sql_id and s.inst_id =  sa2.inst_id and s.con_id =  sa2.con_id
-  left join cdb_objects o  on s.p2 = o.object_id and s.con_id =  o.con_id -- here be dragonz
+  left join cdb_objects o  on s.p2           = o.object_id and s.con_id =  o.con_id -- here be dragonz
+  left join cdb_objects o2 on s.row_wait_obj# = o.object_id and s.con_id =  o.con_id
   left join gv$process p on s.paddr = p.addr and s.inst_id = p.inst_id and s.con_id = p.con_id
 connect by NOCYCLE prior s.sid = nvl(blocking_session, l.sid) and prior s.inst_id = nvl(blocking_instance, l.inst_id)
  start with (s.inst_id, s.sid) in (select inst_id, sid from BLOCKERS minus select inst_id, sid from WAITERS)

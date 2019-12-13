@@ -88,6 +88,7 @@ select
 to_char(signature,'99999999999999999999') as spm_signature,
 to_char(exact_matching_signature,'99999999999999999999') as sql_exact_signature,
 to_char(force_matching_signature,'99999999999999999999') as sql_force_signature
+, to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
   from spm bl, gv$sqlarea sa
 -- where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
 where DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
@@ -111,6 +112,7 @@ select SPM_TYPE,
 to_char(signature,'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 0),'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'99999999999999999999')
+, to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
   from spm bl, dba_hist_sqltext sa
  where --dbms_lob.compare(bl.sql_text, sa.sql_text) = 0 -- wrong!
        DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text)

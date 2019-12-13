@@ -139,6 +139,7 @@ WHERE ksmsslen > 0
 GROUP BY ROLLUP ( ksmdsidx )
 ORDER BY subpool ASC
 /
+/*
 SELECT 
     subpool
   , name
@@ -163,6 +164,7 @@ ORDER BY
     subpool    ASC
   , SUM(bytes) DESC
 /
+*/
 /*
 SELECT 
     subpool

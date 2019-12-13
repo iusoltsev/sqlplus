@@ -3,7 +3,7 @@ set feedback off lines 1000
 col INST_ID for a7
 col INSTANCE_NAME for a20
 col SERVICE for a30
-col HOST_NAME for a30
+col HOST_NAME for a40
 col VERSION for a10
 col STARTUP_TIME for a20
 col STATUS for a8
@@ -15,10 +15,12 @@ col INSTANCE_ROLE for a20
 col ACTIVE_STATE for a12
 col PLATFORM_NAME for a20
 col OPEN_MODE for a10
+col CON_NAME for a30
 
 select to_char(INST_ID)||decode(inst_id,sys_context('userenv', 'instance'),'*') as INST_ID,
        INSTANCE_NAME,
        sys_context('USERENV', 'SERVICE_NAME') as SERVICE,
+       SYS_CONTEXT('USERENV', 'CON_NAME') as CON_NAME,
        HOST_NAME,
        VERSION,
        d.PLATFORM_NAME as PLATFORM_NAME,

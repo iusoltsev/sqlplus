@@ -16,7 +16,7 @@ BEGIN
   exception when no_data_found then select sql_fulltext into v_sql_text from v$sqlarea where sql_id = '&&3';
   end;
     for hint_rec in (select hint
-                       from (select plan_hash_value, b.hint
+                       from /*(select plan_hash_value, b.hint
                                from gv$sql_plan m,
                                     xmltable('/other_xml/outline_data/hint'
                                              passing xmltype(m.OTHER_XML)
@@ -34,7 +34,26 @@ BEGIN
                                              '/hint') b
                               where sql_id = '&&1'
                                 and plan_hash_value = nvl('&&2', plan_hash_value)
-                                and trim(OTHER_XML) is not null))
+                                and trim(OTHER_XML) is not null)*/
+
+        (with m as (select /*+ materialize */
+                    OTHER_XML
+                     from (select OTHER_XML
+                             from gv$sql_plan
+                            where sql_id = '&&1'
+                              and plan_hash_value = nvl('&&2', plan_hash_value)
+                              and trim(OTHER_XML) is not null
+                           union all
+                           select OTHER_XML
+                             from dba_hist_sql_plan
+                            where sql_id = '&&1'
+                              and plan_hash_value = nvl('&&2', plan_hash_value)
+                              and dbms_lob.substr(other_xml, 1000) like '%<other%')
+                    where rownum <= 1)
+         select b.hint
+           from m,
+                xmltable('/other_xml/outline_data/hint' passing
+                         xmltype(m.OTHER_XML) columns hint varchar2(4000) path '/hint') b))
     loop
       lv_hint.EXTEND;
       lv_hint(n_hint) := hint_rec.hint;

@@ -1,11 +1,12 @@
 --
 -- SQL Plan Outline sections diff, by Query block[s] too
--- Usage: SQL> @sql_plan_diff_outl 6r6sanrs05550 3541904711        6r6sanrs05550 2970372553        [SEL$A7C6D689]
---                           ^sql_id1      ^plan_hash_value1 ^sql_id2      ^plan_hash_value2  ^query_block_name
+-- Usage: SQL> @sql_plan_diff_outl_v2 6r6sanrs05550 3541904711        6r6sanrs05550 2970372553        [SEL$A7C6D689]
+--                                    ^sql_id1      ^plan_hash_value1 ^sql_id2      ^plan_hash_value2  ^query_block_name or Outline hint'd part
+--             @sql_plan_diff_outl_v2 fppuw3hpvww2d 4285086053        fppuw3hpvww2d 1002813375        "RA_CUSTOMER_TRX_ALL""@""SEL$118"
 -- by Igor Usoltsev
 --
 
-set feedback on heading on timi off pages 500 lines 512 echo off  VERIFY OFF
+set feedback on heading on timi off pages 1024 lines 512 echo off  VERIFY OFF
 set pages 100
 
 col phv_&&2 for a512
@@ -16,6 +17,8 @@ pro --------------------------------
 pro SQL Plan "Outline" sections diff
 
 pro --------------------------------
+
+set pages 500
 
 with
 plh1 as (select substr(extractvalue(value(d), '/hint'), 1, 512) as phv_&&2
@@ -32,7 +35,8 @@ plh1 as (select substr(extractvalue(value(d), '/hint'), 1, 512) as phv_&&2
                 (select xmltype(other_xml) as xmlval
                    from gv$sql_plan
                   where sql_id = '&&1'
-                    and plan_hash_value = nvl('&&2',0)
+--                    and plan_hash_value = nvl('&&2',0)
+                    and (plan_hash_value = nvl('&&2',0) or child_number = &&2)
                     and other_xml is not null
                     and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
@@ -52,7 +56,8 @@ plh2 as (select substr(extractvalue(value(d), '/hint'), 1, 512) as phv_&&4
                 (select xmltype(other_xml) as xmlval
                    from gv$sql_plan
                   where sql_id = '&&3'
-                    and plan_hash_value = nvl('&&4',0)
+--                    and plan_hash_value = nvl('&&4',0)
+                    and (plan_hash_value = nvl('&&4',0) or child_number = &&4)
                     and other_xml is not null
                     and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&3' and plan_hash_value = nvl('&&4',0)))) d)

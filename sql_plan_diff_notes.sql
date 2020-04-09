@@ -1,7 +1,8 @@
 --
 -- SQL Plan OTHER_XML ("Notes") comparision
--- Usage: SQL> @sql_plan_diff_notes 38dyq2ab12nju 2108937779        38dyq2ab12nju 3773907172        "SEL$6444526D','SET$1"
---                                  ^SQL_ID1      ^PLAN_HASH_VALUE1 ^SQL_ID2      ^PLAN_HASH_VALUE2  ^QBLOCK_LIST "[QB1[','QB2...]]" -- 2do!!!
+-- Usage: SQL> @sql_plan_diff_notes 38dyq2ab12nju 2108937779        38dyq2ab12nju 3773907172        "SEL$6444526D"
+--                                  ^SQL_ID1      ^PLAN_HASH_VALUE1 ^SQL_ID2      ^PLAN_HASH_VALUE2  ^QBLOCK[_LIST "[QB1[','QB2...]]" -- 2do!!!]
+--             @sql_plan_diff_notes fppuw3hpvww2d 4285086053        fppuw3hpvww2d 1002813375        "RA_CUSTOMER_TRX_ALL""@""SEL$118"
 -- by Igor Usoltsev
 --
 
@@ -87,7 +88,8 @@ from
     select other_xml
                    from gv$sql_plan
                   where sql_id = '&&1'
-                    and plan_hash_value = nvl('&&2',0)
+--                    and plan_hash_value = nvl('&&2',0)
+                    and (plan_hash_value = nvl('&&2',0) or child_number = &&2)
                     and other_xml is not null
                     and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),
@@ -103,7 +105,8 @@ from
     select other_xml
                    from gv$sql_plan
                   where sql_id = '&&3'
-                    and plan_hash_value = nvl('&&4',0)
+--                    and plan_hash_value = nvl('&&4',0)
+                    and (plan_hash_value = nvl('&&4',0) or child_number = &&4)
                     and other_xml is not null
                     and rownum <= 1
 --                    and child_number = (select min(child_number) from v$sql_plan where sql_id = '&&1' and plan_hash_value = nvl('&&2',0)))) d),

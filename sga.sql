@@ -4,7 +4,7 @@
 --SQL> @sga
 --
 
-set feedback off heading on timi off pages 100 lines 500
+set feedback off heading on timi off pages 500 lines 500
 
 col name format a40
 col object_name format a100
@@ -51,7 +51,7 @@ select name, round(bytes/1024/1024) as MB
 from v$sgastat
 where pool = 'shared pool'
 order by BYTES desc
-) where rownum <= 10
+) where rownum <= 30
 /
 
 PROMPT
@@ -130,16 +130,6 @@ rem http://blog.tanelpoder.com/2009/06/04/ora-04031-errors-and-monitoring-shared
 
 PROMPT Shared Pool Subpool distribution:
 
-SELECT
-    'shared pool ('||NVL(DECODE(TO_CHAR(ksmdsidx),'0','0 - Unused',ksmdsidx), 'Total')||'):'  subpool
-  , SUM(ksmsslen) bytes
-  , ROUND(SUM(ksmsslen)/1048576,2) MB
-FROM x$ksmss
-WHERE ksmsslen > 0
-GROUP BY ROLLUP ( ksmdsidx )
-ORDER BY subpool ASC
-/
-/*
 SELECT 
     subpool
   , name
@@ -164,8 +154,17 @@ ORDER BY
     subpool    ASC
   , SUM(bytes) DESC
 /
-*/
+
 /*
+SELECT
+    'shared pool ('||NVL(DECODE(TO_CHAR(ksmdsidx),'0','0 - Unused',ksmdsidx), 'Total')||'):'  subpool
+  , SUM(ksmsslen) bytes
+  , ROUND(SUM(ksmsslen)/1048576,2) MB
+FROM x$ksmss
+WHERE ksmsslen > 0
+GROUP BY ROLLUP ( ksmdsidx )
+ORDER BY subpool ASC
+/
 SELECT 
     subpool
   , name
@@ -188,7 +187,8 @@ GROUP BY
 ORDER BY
     subpool    ASC
   , SUM(bytes) DESC
-/
+*/
+
 
 --Diagnosing and Resolving Error ORA-04031 on the Shared Pool or Other Memory Pools [Video] [ID 146599.1]
 
@@ -201,7 +201,7 @@ SELECT KSMCHIDX subpool,
        To_char(((SUM(KSMCHSIZ) / COUNT(KSMCHCLS) / 1024)), '999,999.00') || 'k' "AVG SIZE",
        To_char(((MIN(KSMCHSIZ))), '999,999,999') || 'bytes' "MIN SIZE",
        To_char(((MAX(KSMCHSIZ))), '999,999,999') || 'bytes' "MAX SIZE"
-  FROM X$KSMSP
+  FROM X$KSMSP									 -- CDB$ROOT
  GROUP BY KSMCHIDX,
           KSMCHDUR,
           KSMCHCLS
@@ -212,7 +212,7 @@ SELECT KSMCHIDX subpool,
 select '0 (<140)' BUCKET, KSMCHCLS, KSMCHIDX, 10*trunc(KSMCHSIZ/10) "From",
 count(*) "Count" , max(KSMCHSIZ) "Biggest",
 trunc(avg(KSMCHSIZ)) "AvgSize", trunc(sum(KSMCHSIZ)) "Total"
-from x$ksmsp
+from x$ksmsp									 -- CDB$ROOT
 where KSMCHSIZ<140
 and KSMCHCLS='free'
 group by KSMCHCLS, KSMCHIDX, 10*trunc(KSMCHSIZ/10)
@@ -247,7 +247,6 @@ trunc(avg(KSMCHSIZ)) "AvgSize", trunc(sum(KSMCHSIZ)) "Total"
 from x$ksmsp
 where KSMCHSIZ >= 4108
 and KSMCHCLS='free'
-group by KSMCHCLS, KSMCHIDX, 1000*trunc(KSMCHSIZ/1000);
+group by KSMCHCLS, KSMCHIDX, 1000*trunc(KSMCHSIZ/1000)
 /
-*/
 set feedback on

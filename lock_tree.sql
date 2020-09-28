@@ -8,7 +8,7 @@ set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
 
 col BLOCKING_TREE for a60
 col TYPE          for a4
-col SQL_TEXT      for a100
+col SQL_TEXT      for a200
 col EVENT         for a40 head "Event name"
 col USER_CLIENT   for a60
 col P1TEXT        for a40
@@ -47,18 +47,86 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
 alter session set "_with_subquery"=optimizer
 */
 with
- LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock --where inst_id in (select sys_context('USERENV', 'INSTANCE') from dual) --and (block > 0 or REQUEST > 0) and type not in ('MR','AE')
- )
+ LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock)
 --select * from LOCKS
 ,S        as (select /* MATERIALIZE*/ s.* from gv$session s)
 ,BLOCKERS as
-         (select /*+ MATERIALIZE*/ distinct L1.inst_id, L1.sid, L1.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)
+         (select /*+ MATERIALIZE*/ distinct L1.inst_id, L1.sid, L1.con_id, L1.type, L1.ID1, L1.ID2, L1.block, case when L1.REQUEST > 0 then 1 else 0 end as REQUEST, L1.KADDR--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)
             from LOCKS L1, LOCKS L2
            where L1.block > 0
              and L1.ID1 = L2.ID1
              and L1.ID2 = L2.ID2
              and L2.REQUEST > 0)
-,WAITERS  as (select /*+ MATERIALIZE*/ inst_id, sid, con_id from S where blocking_session is not null or blocking_instance is not null
+--select * from BLOCKERS
+,WAITERS  as (--select /*+ MATERIALIZE*/ inst_id, sid, con_id, substr(event,6,2) as type from S where blocking_session is not null or blocking_instance is not null               union
+              select /*+ MATERIALIZE*/ distinct L2.inst_id, L2.sid, L2.con_id, L2.type, L2.ID1, L2.ID2, L2.block, case when L2.REQUEST > 0 then 1 else 0 end as REQUEST, L2.KADDR--, UTL_RAW.CAST_TO_VARCHAR2(L2.KADDR)
+               from LOCKS L1, LOCKS L2
+              where L1.block > 0
+                and L1.ID1 = L2.ID1
+                and L1.ID2 = L2.ID2
+                and L2.REQUEST > 0)
+--select * from WAITERS
+--select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS union select inst_id, sid, type, con_id, ID1, ID2 from WAITERS
+,b3 as (select /*+ MATERIALIZE*/
+               LEVEL as LVL,
+               LPAD(' ', (LEVEL - 1) * 2) || 'INST#' || inst_id || ' SID#' || sid ||' CON#' || con_id as BLOCKING_TREE,
+               type, inst_id, sid, con_id, KADDR, block, REQUEST, ID1, ID2
+          from (select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from BLOCKERS
+                union
+                select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from WAITERS) ll
+        connect by NOCYCLE prior ID1 = ID1
+               and prior ID2 = ID2
+               and prior type = type
+               and prior sid != sid
+               and prior block > block
+         start with (inst_id, sid, type, con_id, ID1, ID2) in
+                    (select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS where block > 0 and REQUEST = 0))
+select --+ ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
+       LVL, BLOCKING_TREE, b3.TYPE--, KADDR
+     , s.program
+     , s.USERNAME
+     , s.CLIENT_IDENTIFIER as CLIENT_ID
+     , EVENT
+     , last_call_et
+     , seconds_in_wait as SECS_IN_WAIT
+     , blocking_session_status as BLOCK_SESSTAT
+     , pdml_enabled
+     , NVL(s.sql_id,s.prev_sql_id) as SQL_ID
+     , s.osuser
+--   , p.spid
+     , s.machine
+     , s.process as CLNT_PID
+     , s.port    as CLNT_PORT
+     , NVL(o.object_type, o2.object_type) || ' ' || NVL(o.owner, o2.owner) ||'.'|| NVL(o.object_name, o2.object_name) req_object
+     , decode(sign(nvl(s.ROW_WAIT_OBJ#, -1)), -1, 'NONE', DBMS_ROWID.ROWID_CREATE(1, s.ROW_WAIT_OBJ#, s.ROW_WAIT_FILE#, s.ROW_WAIT_BLOCK#, s.ROW_WAIT_ROW#)) as req_rowid
+     , decode(p1text, 'name|mode', chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535), p1text)                      as p1text
+     , p1
+     , p1raw
+     , p2text
+     , p2
+     , 'Alter system kill session '''||s.SID||','||s.SERIAL#||','||'@'||s.INST_ID||''';' as KILL_SESSION
+     , substr(replace(replace(sa1.SQL_TEXT,chr(10),' '),chr(13),' '),1,200) as SQL_TEXT
+ from b3
+ join s on s.inst_id = b3.inst_id and s.sid = b3.sid
+ left join cdb_objects o  on decode(b3.type,'TM',b3.id1,s.p2) = o.object_id and s.con_id =  o.con_id -- here be dragonz
+ left join cdb_objects o2 on s.row_wait_obj#                  = o2.object_id and s.con_id =  o2.con_id
+ left join gv$sqlarea sa1 on NVL(s.sql_id,s.prev_sql_id) = sa1.sql_id and s.inst_id =  sa1.inst_id and s.con_id =  sa1.con_id
+order by ID1, ID2, block desc
+/
+/*
+with
+ LOCKS    as (select /*+ MATERIALIZE/   * from gv$lock --where inst_id in (select sys_context('USERENV', 'INSTANCE') from dual) --and (block > 0 or REQUEST > 0) and type not in ('MR','AE')
+ )
+--select * from LOCKS
+,S        as (select /* MATERIALIZE/ s.* from gv$session s)
+,BLOCKERS as
+         (select /*+ MATERIALIZE/ distinct L1.inst_id, L1.sid, L1.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L1.KADDR)
+            from LOCKS L1, LOCKS L2
+           where L1.block > 0
+             and L1.ID1 = L2.ID1
+             and L1.ID2 = L2.ID2
+             and L2.REQUEST > 0)
+,WAITERS  as (select /*+ MATERIALIZE/ inst_id, sid, con_id from S where blocking_session is not null or blocking_instance is not null
               union
               select distinct L2.inst_id, L2.sid, L2.con_id--, UTL_RAW.CAST_TO_VARCHAR2(L2.KADDR)
                from LOCKS L1, LOCKS L2
@@ -97,12 +165,10 @@ l.KADDR,
  p1raw,
  p2text || ' ' || decode(p2text, 'object #', o.object_name || ' ' || o.owner || '.' || o.object_name, '') as p2text,
  p2
-/*,
  p2raw,
  p3text,
  p3,
  p3raw
-*/
 , 'Alter system kill session '''||s.SID||','||s.SERIAL#||','||'@'||s.INST_ID||''';' as KILL_SESSION
   from s
   left join LOCKS l on s.inst_id = l.inst_id and s.sid = l.sid and s.LOCKWAIT = l.KADDR--UTL_RAW.CAST_TO_RAW(s.LOCKWAIT) = l.KADDR
@@ -113,6 +179,6 @@ l.KADDR,
   left join gv$process p on s.paddr = p.addr and s.inst_id = p.inst_id and s.con_id = p.con_id
 connect by NOCYCLE prior s.sid = nvl(blocking_session, l.sid) and prior s.inst_id = nvl(blocking_instance, l.inst_id)
  start with (s.inst_id, s.sid) in (select inst_id, sid from BLOCKERS minus select inst_id, sid from WAITERS)
-/
+*/
 set feedback on echo off VERIFY ON
 

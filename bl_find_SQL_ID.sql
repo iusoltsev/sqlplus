@@ -1,7 +1,7 @@
 --
 -- 2find exact SQL_ID and PLAN_HASH_VALUE for SPM baseline, searching for the matching sql text and plan outlines in Shared pool and AWR
--- Usage: SQL> @bl_find_SQL_ID [SQL_148cdf9124bc55dd | SQL_PLAN_1936zk4kbspfxee773f4d]
---                             ^SQL_HANDLE OR PLAN_NAME | SQL_HANDLE AND PLAN_NAME
+-- Usage: SQL> @bl_find_SQL_ID SQL_148cdf9124bc55dd     SQL_PLAN_1936zk4kbspfxee773f4d
+--                             ^SQL_HANDLE OR PLAN_NAME ^SQL_HANDLE AND PLAN_NAME
 --
 
 set echo off feedback on heading on VERIFY OFF serveroutput on

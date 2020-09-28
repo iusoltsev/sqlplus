@@ -4,7 +4,7 @@
 -- http://iusoltsev.wordpress.com
 --
 
-set echo off feedback on heading on VERIFY OFF serveroutput on
+set echo off feedback on heading on VERIFY OFF serveroutput off
 col sql_id for a13
 col name for a30
 col category for a30
@@ -17,14 +17,19 @@ col force_matching for a5
 
 ACCEPT SQL_ID 	      PROMPT 'Enter SQL_ID (required):'
 ACCEPT SQL_PATCH_TEXT for a512 PROMPT 'Enter SQL_PATCH_TEXT (required):'
-ACCEPT SQL_PATCH_NAME PROMPT 'Enter SQL_PATCH_NAME (required):'
+ACCEPT SQL_PATCH_NAME for a512 PROMPT 'Enter SQL_PATCH_NAME (required):'
+--ACCEPT E PROMPT 'Enter'
+--PROMPT Press <CR> to continue...
+--PAUSE
 
 declare
   v_version SYS.V_$INSTANCE.version%type;
   v_plsql   varchar2(4096);
+  spm_already_exists EXCEPTION;
+  PRAGMA EXCEPTION_INIT(spm_already_exists, -13829);
 begin
   select version into v_version from SYS.V_$INSTANCE;
-  dbms_sqldiag.drop_sql_patch('&SQL_PATCH_NAME', ignore => TRUE);
+  dbms_sqldiag.drop_sql_patch('&&SQL_PATCH_NAME', ignore => TRUE);
   for reco in (--select sql_fulltext from v$sqlarea where sql_id = '&SQL_ID'
 	select nvl(sql_fulltext, sql_text) as SQL_FULLTEXT
   		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = '&&SQL_ID')
@@ -32,7 +37,7 @@ begin
        		(select sql_id, sql_fulltext from v$sqlarea where sql_id = '&&SQL_ID')
  	using (sql_id))
   loop
-    if v_version like '12.2%'
+    if v_version like '12.2%' OR substr(v_version,1,2) >= 18
 /*
        then f := sys.dbms_sqldiag_internal.i_create_patch(sql_text  => reco.sql_fulltext,
                                                           hint_text => '&&SQL_PATCH_TEXT',
@@ -49,6 +54,8 @@ begin
         EXECUTE IMMEDIATE v_plsql USING reco.sql_fulltext;
     end if;
   end loop;
+EXCEPTION
+   WHEN spm_already_exists THEN null; -- ORA-13829: SQL profile or patch named % exists
 end;
 /
 select sa.sql_id,
@@ -62,10 +69,10 @@ select sa.sql_id,
        sp.force_matching as fmatch
   from dba_sql_patches sp, v$sqlarea sa
  where dbms_lob.compare(sp.sql_text, sa.sql_fulltext) = 0
-   and sa.sql_id = '&SQL_ID'
+   and sa.sql_id = '&&SQL_ID'
 /
 
-@SQLPATCH_HINTS "&SQL_PATCH_NAME"
+@SQLPATCH_HINTS "&&SQL_PATCH_NAME"
 
 /* 12.2+
 declare

@@ -20,13 +20,16 @@ col DATA_OBJECT_p1raw for a52
 with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from gv$active_session_history s &3
 --		where sample_time > sysdate-1/24
 		)
-select LEVEL as LVL,
+select--+ opt_param('_fix_control' '16166364:off')
+       LEVEL as LVL,
        inst_id,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
-        case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
+        case when program like 'rman%' then '(RMAN)'
+          when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
           when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+          when REGEXP_INSTR(program, '\(PR..\)')     > 0 then '(PR..)'
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
@@ -37,18 +40,20 @@ select LEVEL as LVL,
        REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
-       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))) as P1RAW,
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch free' then to_char(p1) end
+                                                  as "P1[RAW]",
        o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --case when session_state='WAITING' and p1text='handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
 In_hard_Parse,
 In_Parse,
 In_Sql_Execution,
 sql_adaptive_plan_resolved as ADAPTIVE,
-sql_child_number,
+--sql_child_number,
 --machine,
 --program,
 --module,
-top_level_call_name,
+--top_level_call_name,
 --       p1text, p1,
 --       p2text, p2,
 --       p3,
@@ -61,8 +66,8 @@ top_level_call_name,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
        blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
-max(sample_time) as max_stime,
-       sql_ID
+max(sample_time) as max_stime
+       ,sql_ID
 ,top_level_sql_id
 ,sql_plan_hash_value
 ,nvl2(sql_exec_id, 1, 0) as sql_exec_id
@@ -72,8 +77,8 @@ max(sample_time) as max_stime,
        ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))) as sql_text
   from --gv$active_session_history
       ash
-       left join (select sql_id, dbms_lob.substr(sql_text,200) as sql_text from dba_hist_sqltext
-                  union select sql_id, dbms_lob.substr(sql_fulltext,100) as sql_text from gv$sqlarea) hs using(sql_id)
+       left join (select distinct sql_id, dbms_lob.substr(sql_fulltext,100) as sql_text from gv$sqlarea
+                  union select sql_id, dbms_lob.substr(sql_text,100) as sql_text from dba_hist_sqltext) hs using(sql_id)--on NVL(ash.sql_id,ash.top_level_sql_id) = hs.sql_id--
        left join dba_procedures   p  on nvl(plsql_entry_object_id, plsql_object_id) = p.object_id
                                     and nvl(plsql_entry_subprogram_id, plsql_subprogram_id) = p.subprogram_id
        left join dba_objects      o  on ash.current_obj# = o.object_id
@@ -82,14 +87,16 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
                     trunc(ash.sample_time) = trunc(prior ash.sample_time) and
                     abs(to_char(ash.sample_time,'SSSSS') - to_char(prior ash.sample_time,'SSSSS')) < 1)
                 and ash.SESSION_ID      = prior ash.BLOCKING_SESSION
---              and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
-                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
+                and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
+--                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
           inst_id,
 --          BLOCKING_INST_ID,
-        case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
+        case when program like 'rman%' then '(RMAN)'
+          when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
           when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+          when REGEXP_INSTR(program, '\(PR..\)')     > 0 then '(PR..)'
           when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
@@ -102,32 +109,33 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           wait_class,
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
-       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))),
---       o.owner||'.'||o.object_name||'.'||o.subobject_name,
-sql_adaptive_plan_resolved,
-sql_child_number,
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch free' then to_char(p1) end,
        o.owner||'.'||o.object_name||'.'||o.subobject_name,
+sql_adaptive_plan_resolved,
+--sql_child_number,
+--       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --case when session_state='WAITING' and p1text='handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end,
 --       p1text, p1,
 In_hard_Parse,
 In_Parse,
-In_Sql_Execution,
+In_Sql_Execution
 --machine,
 --program,
 --module,
-top_level_call_name,
+--top_level_call_name,
 --       p2text, p2,
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
-          blocking_session_status||' i#'||blocking_inst_id,
-          sql_ID
+          ,blocking_session_status||' i#'||blocking_inst_id
+          ,sql_ID
 ,top_level_sql_id
 ,sql_plan_hash_value
 ,nvl2(sql_exec_id, 1, 0)
           ,sql_plan_line_ID
           ,sql_plan_operation||' '||sql_plan_options
 --          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9)))
-       ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))
+          ,trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))
  having count(distinct sample_id) > nvl('&2', 0)
  order by LEVEL, count(1) desc
 /

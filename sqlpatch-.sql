@@ -1,5 +1,5 @@
 --
--- Create SQL Patch for given sql_id
+-- Create SQL Patch|Profile for given sql_id
 -- Usage: SQL> @sqlpatch- "da0qdhtw4mhqh_NO_ADAPT" da0qdhtw4mhqh
 --
 
@@ -16,6 +16,7 @@ col force_matching for a5
 
 begin
   dbms_sqldiag.drop_sql_patch('&1', ignore => TRUE);
+  dbms_sqltune.drop_sql_profile  ('&1', ignore => TRUE);
 end;
 /
 

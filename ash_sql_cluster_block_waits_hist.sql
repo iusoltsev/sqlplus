@@ -17,7 +17,7 @@ col SQL_OPNAME2 for a12
 col object_type for a20
 col object_name for a40
 
-with ash as (select /* MATERIALIZE*/ * from dba_hist_active_sess_history where snap_id between 348233 and 348236
+with ash as (select /* MATERIALIZE*/ * from dba_hist_active_sess_history where snap_id between 175394 and 175399
 --             where sample_time between nvl(to_date('#1','dd.mm hh24:mi'),sysdate-1e6) and nvl(to_date('#2','dd.mm hh24:mi'),sysdate+1e6)
              )
 select ash1.instance_number          as INST_ID1,

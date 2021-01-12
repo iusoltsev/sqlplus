@@ -4,7 +4,7 @@
 --                                 ^Request_id  ^FieldSelector    ^topN_sql
 --
 
-set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
+set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
 
 col INST_ID for 9999999
 col BLOCK_INST for 9999999999
@@ -19,7 +19,7 @@ col PLSQL for a60
 col CLIENT_ID for a30
 col SQL_TEXT for a200
 col TOP_SQL_TEXT for a200
-
+col WAIT_PROFILE for a200
 
 col DBID        new_value v_DBID noprint
 col min_snap_id new_value v_min_snap_id noprint

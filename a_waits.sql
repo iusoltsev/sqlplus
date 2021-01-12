@@ -47,14 +47,14 @@ from
   (select event e9, count(*)  t9 from v$session_wait group by event, TO_CHAR(SYSTIMESTAMP, 'FF6'))
 where
   n.name not in ('null event','rdbms ipc message','pipe get','virtual circuit status','reliable message','PING','LNS ASYNC end of log','REPL Capture/Apply: RAC AQ qm') and
-  n.name not like '%timer%' and
+--  n.name not like '%timer%' and
   n.name not like 'SQL*Net message from %' and
   n.name not like 'Streams AQ%' and
   n.name not like '%slave wait%' and
   lower(n.name) not like '%idle%' and  
   lower(n.name) not like '%sleep%' and  
   n.name not like '%VKTM%' and
-n.WAIT_CLASS not in ('Idle') and
+(n.WAIT_CLASS not in ('Idle') OR n.name = 'PL/SQL lock timer') and
   e0 (+) = n.name and
   e1 (+) = n.name and
   e2 (+) = n.name and

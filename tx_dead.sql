@@ -7,18 +7,34 @@ set feedback off
 column "ORIGIN/GTX_INIT_PROC" format a20
 column "FROM_DB.GTXID" format a64
 column LSESSION format a10
-column STATE format a8
+column STATE format a10
 column waiting format a60
 
-select ktuxeusn USN,
+select inst_id,
+       ktuxeusn USN,
        ktuxeslt Slot,
        ktuxesqn Seq,
        ktuxesta State,
-       ktuxesiz Undo
+       ktuxesiz Undo,
+       ktuxecfl
   from x$ktuxe
  where ktuxesta <> 'INACTIVE'
    and ktuxecfl like '%DEAD%'
  order by ktuxesiz asc
+/
+select inst_id,
+       usn,
+       state,
+       undoblockstotal "Total",
+       undoblocksdone "Done",
+       undoblockstotal - undoblocksdone "ToDo",
+       decode(cputime,
+              0,
+              'unknown',
+              sysdate + (((undoblockstotal - undoblocksdone) /
+              (undoblocksdone / cputime)) / 86400)) "Estimated time to complete"
+  from gv$fast_start_transactions
+ where state <> 'RECOVERED'
 /
 set headin on
 set feedback on

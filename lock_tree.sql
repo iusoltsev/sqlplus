@@ -9,7 +9,7 @@ set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
 col BLOCKING_TREE for a60
 col TYPE          for a4
 col SQL_TEXT      for a200
-col EVENT         for a40 head "Event name"
+col EVENT         for a60 head "Event name"
 col USER_CLIENT   for a60
 col P1TEXT        for a40
 col P2TEXT        for a40
@@ -179,6 +179,21 @@ l.KADDR,
   left join gv$process p on s.paddr = p.addr and s.inst_id = p.inst_id and s.con_id = p.con_id
 connect by NOCYCLE prior s.sid = nvl(blocking_session, l.sid) and prior s.inst_id = nvl(blocking_instance, l.inst_id)
  start with (s.inst_id, s.sid) in (select inst_id, sid from BLOCKERS minus select inst_id, sid from WAITERS)
+*/
+/*
+SELECT l.*,
+  s.username,
+  a.name,
+  a.expiration
+FROM gv$lock l,
+  gv$session s,
+  dbms_lock_allocated a
+WHERE l.TYPE = 'UL'
+AND s.sid    = l.sid
+AND s.inst_id    = l.inst_id
+and a.name not like 'FNDCPLK%' --= 'PAY_POPULATION_RANGES1499355'
+AND a.lockid = l.id1;
+--How to Identify the Users of DBMS_LOCK (also known as UL) locks (Doc ID 1913830.1)
 */
 set feedback on echo off VERIFY ON
 

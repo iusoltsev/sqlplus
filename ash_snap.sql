@@ -9,10 +9,10 @@ select inst_id, min(sample_time) from gv$active_session_history group by inst_id
 declare
     sdate char(12) := to_char(sysdate,'YYYYMMDDHH24MI');
     def_ts varchar2(30) := nvl('&1','USERS');
-    vers varchar2(20);
+    vers number;
 begin
-  select version into vers from v$instance;
-  if vers like '12%' then
+  select to_number(REGEXP_SUBSTR(version, '[[:digit:]]+')) into vers from v$instance;
+  if vers >= 12 then
   execute immediate '
   create table SYSTEM.ASH_' || sdate ||' tablespace '|| def_ts ||' as
   select s.plan_hash_value      as SQL_PHV,
@@ -26,8 +26,14 @@ begin
   create table SYSTEM.ASH_' || sdate ||' tablespace '|| def_ts ||' as
   select ash.* from gv$active_session_history ash';
   end if;
+
+  execute immediate '
+  create table SYSTEM.SQLMON_' || sdate ||' tablespace '|| def_ts ||' as
+  select * from gv$sql_plan_monitor';
+
   dbms_output.put_line(' --- ');
   dbms_output.put_line(' --- The Snap Table SYSTEM.ASH_' || sdate ||' was successfully created in tablespace '|| def_ts);
+  dbms_output.put_line(' --- The Snap Table SYSTEM.SQLMON_' || sdate ||' was successfully created in tablespace '|| def_ts);
   dbms_output.put_line(' --- ');
 end;
 /

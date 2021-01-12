@@ -12,7 +12,7 @@ col secs_in_wait 	for 	a12
 col event 		for 	a40
 col sid 		for 	a6
 col serial 		for 	a7
-col program 		for 	a44
+col program 		for 	a60
 col sql_text 		for 	a100
 COL SQL4REMOTE_INST HEADING "SQL for executing on other instances:" FORMAT A150
 col sql_exec_start      for     a15
@@ -37,6 +37,8 @@ select --+ ordered
        s.program,
        a.sql_id,
        substr(a.sql_text,1,100) as sql_text
+, s.module, s.action
+, 'Alter system kill session '''||s.SID||','||s.SERIAL#||''';' as KILL_SESSION
   from (select distinct p1raw from v$session where state = 'WAITING' and event in ('library cache lock', 'library cache pin')) b
        join dba_kgllock l    on l.kgllkhdl = b.p1raw -- this is LOCAL view ONLY
        join v$session s      on l.kgllkuse = s.saddr
@@ -85,5 +87,5 @@ select --+ ordered
        join dba_kgllock l  on l.kgllkhdl = b.p1raw -- this is LOCAL view ONLY
        left join x$kglob w on l.kgllkhdl = w.kglhdadr
 /
-rem @@mutex_waits
+@@mutex_waits
 set feedback on VERIFY ON timi on

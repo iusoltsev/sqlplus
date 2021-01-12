@@ -17,6 +17,7 @@ col TARGET_SIZE for a15
 col FINAL_SIZE for a15
 col NAMESPACE for a40
 col TYPE      for a40
+--col FORCE_MATCHING_SIGNATURE for a30
 @@sysdate
 
 select decode(value,0,'ASMM:off','ASMM:on') as ASMM_Status
@@ -55,8 +56,43 @@ order by BYTES desc
 /
 
 PROMPT
+PROMPT Shared Pool Cache Top 10 w/o binds
+PROMPT
+select * from (
+select inst_id,
+       substr(sql_text, 1, 100) as stext,
+       count(*) as cursor_count,
+       to_char(sum(sharable_mem),'999,999,999,999,999') as sum_sharable_mem,
+       count(distinct sql_id) as distinct_sql_id,
+       count(distinct FORCE_MATCHING_SIGNATURE) as distinct_force_sign,
+       count(distinct child_number) as version_count
+  from gv$sql
+ where sql_text not like 'SELECT /* OPT_DYN_SAMP */ /*+ ALL_ROWS IGNORE_WHERE_CLAUSE RESULT_CACHE(SNAPSHOT%'
+   and sql_text not like '/* SQL Analyze(0) */ select /*+  full(t)    parallel(t,16) parallel_index(t,16)%'
+ group by inst_id, substr(sql_text, 1, 100)
+--having sum(sharable_mem) > 1e9
+ order by sum(sharable_mem) desc
+) where rownum <= 10
+/
+select * from (
+select inst_id,
+       to_char(force_matching_signature,'9999999999999999999999999') as force_matching_signature,
+       substr(sql_text, 1, 100) as stext,
+       count(*) as cursor_count,
+       to_char(sum(sharable_mem),'999,999,999,999,999') as sum_sharable_mem,
+       count(distinct sql_id),
+       count(distinct child_number) as version_count
+  from gv$sql
+ where sql_text not like 'SELECT /* OPT_DYN_SAMP */ /*+ ALL_ROWS IGNORE_WHERE_CLAUSE RESULT_CACHE(SNAPSHOT%'
+   and sql_text not like '/* SQL Analyze(0) */ select /*+  full(t)    parallel(t,16) parallel_index(t,16)%'
+ group by inst_id, substr(sql_text, 1, 100), force_matching_signature
+--having sum(sharable_mem) > 1e9
+ order by sum(sharable_mem) desc)
+where rownum <= 10
+/
 PROMPT
 PROMPT Shared Pool Cache Top 10
+PROMPT
 
 select *
   from (select hash_value,
@@ -209,6 +245,7 @@ SELECT KSMCHIDX subpool,
           KSMCHDUR,
           KSMCHCLS
 /
+/*
 select '0 (<140)' BUCKET, KSMCHCLS, KSMCHIDX, 10*trunc(KSMCHSIZ/10) "From",
 count(*) "Count" , max(KSMCHSIZ) "Biggest",
 trunc(avg(KSMCHSIZ)) "AvgSize", trunc(sum(KSMCHSIZ)) "Total"
@@ -248,5 +285,32 @@ from x$ksmsp
 where KSMCHSIZ >= 4108
 and KSMCHCLS='free'
 group by KSMCHCLS, KSMCHIDX, 1000*trunc(KSMCHSIZ/1000)
+*/
+select KSMCHIDX,
+       case
+         when KSMCHSIZ < 140 then '0 (<140)'
+         when KSMCHSIZ between 140 and 267 then '1 (140-267)'
+         when KSMCHSIZ between 268 and 523 then '2 (268-523)'
+         when KSMCHSIZ between 524 and 4107 then '3-5 (524-4107)'
+         else '6+ (4108+)'
+       end as BUCKET,
+       KSMCHCLS, --500*trunc(KSMCHSIZ/500) as  "From",
+       count(*),
+       min(KSMCHSIZ) "Min",
+       max(KSMCHSIZ) "Max",
+       trunc(avg(KSMCHSIZ)) "AvgSize",
+       trunc(sum(KSMCHSIZ)) "Total"
+  from x$ksmsp
+ where KSMCHCLS = 'free'
+ group by case
+            when KSMCHSIZ < 140 then '0 (<140)'
+            when KSMCHSIZ between 140 and 267 then '1 (140-267)'
+            when KSMCHSIZ between 268 and 523 then '2 (268-523)'
+            when KSMCHSIZ between 524 and 4107 then '3-5 (524-4107)'
+            else '6+ (4108+)'
+          end,
+          KSMCHCLS,
+          KSMCHIDX --, 500*trunc(KSMCHSIZ/500)
+ order by 1, 2
 /
 set feedback on

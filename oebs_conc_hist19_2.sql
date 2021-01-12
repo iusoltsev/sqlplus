@@ -6,7 +6,7 @@
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
 
-col INST_ID for 9999999
+col INST for 9999
 col BLOCK_INST for 9999999999
 col LVL for 999
 col BLOCKING_TREE for a30
@@ -20,6 +20,10 @@ col CLIENT_ID for a30
 col SQL_TEXT for a200
 col TOP_SQL_TEXT for a200
 col WAIT_PROFILE for a200
+col PARENT_REQUEST_ID for 999999999
+col PARENT_ID for 999999999
+col SID for 999
+col SERIAL for 99999999
 
 col DBID        new_value v_DBID noprint
 col min_snap_id new_value v_min_snap_id noprint
@@ -81,9 +85,9 @@ with sids as
         ROOT_request_id
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', parent_request_id)    as parent_request_id
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', request_id)           as request_id
-      , decode(instr(upper('&2'), 'SID'), 0, 'na', instance_number)      as inst#
+      , decode(instr(upper('&2'), 'SID'), 0, 'na', instance_number)      as inst
       , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)                  as sid
-      , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)              as serial#
+      , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)              as serial
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)     as top_level_sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)               as sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)  as sql_plan_hash_value
@@ -155,7 +159,7 @@ select /*+ monitor */ * from (
   select-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE('12.1.0.2') use_concat
     ROOT_request_id
   , parent_request_id, request_id
-  , inst#, sid, serial#
+  , inst, sid, serial
   , top_level_sql_id, a.sql_id, sql_plan_hash_value
   --, sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
   , PLSQL
@@ -170,19 +174,19 @@ select /*+ monitor */ * from (
   , min(min_sample_time)                                                                    as min_sample_time
   , max(max_sample_time)                                                                    as max_sample_time
   , to_char(RATIO_TO_REPORT(sum(ash_row)) OVER() * 100, '990.99')                           AS "DBTime%"
-  , SQL_TEXT
-  , TOP_SQL_TEXT
   , substr(LISTAGG (distinct EVENT || '('||ash_row4event||')', '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY ash_row4event desc),1,200) as WAIT_PROFILE
   --, rtrim(xmlagg(xmlelement(s, EVENT || '(' || ash_row4event, '); ').extract('//text()') order by ash_row4event desc), '; ') as WAIT_PROFILE
   --, rtrim(xmlagg(xmlelement(s, EVENT || '(' || sum(ash_row), '); ').extract('//text()') order by sum(ash_row) desc), '; ') as WAIT_PROFILE
   --90207458, rtrim(xmlagg(xmlelement(s, EVENT || '(' || DBTime_percent, '); ').extract('//text()') order by ash_rows desc), '; ') as WAIT_PROFILE2
-  , min(min_snap_id)                                                                        as min_snap_id
-  , max(max_snap_id)                                                                        as max_snap_id
+  , SQL_TEXT
+  , TOP_SQL_TEXT
+  , min(min_snap_id)                                                                        as mmin_snap_id
+  , max(max_snap_id)                                                                        as mmax_snap_id
     from a
   group by
     ROOT_request_id
   , request_id, parent_request_id
-  , inst#, sid, serial#
+  , inst, sid, serial
   , top_level_sql_id, a.sql_id, sql_plan_hash_value
   --, sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
   , PLSQL

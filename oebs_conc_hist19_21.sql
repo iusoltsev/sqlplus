@@ -1,6 +1,6 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
--- Usage: SQL> @oebs_conc_hist19_2 91911537    [SQL]|REQ|SID|MOD [10]
+-- Usage: SQL> @oebs_conc_hist19_21 91911537    [SQL]|REQ|SID|MOD [10]
 --                                 ^Request_id  ^FieldSelector    ^topN_sql
 --
 
@@ -43,7 +43,7 @@ with sids as
               when STATUS_CODE in ('C','X','E','G') then actual_completion_date
               else max(v_timestamp) over () end as max_timestamp
        from system.fnd_concurrent_sessions join apps.fnd_concurrent_requests b using (request_id,parent_request_id)
-       start with request_id in  ('&1')
+       start with request_id in  (&1)
         connect by nocycle parent_request_id = prior request_id and b.RESUBMIT_INTERVAL is null
         and module not like 'oratop@%')
 select  DBID--, con_id
@@ -68,10 +68,10 @@ with sids as
        serial#,
        min(v_timestamp) over () as min_timestamp
        , case when STATUS_CODE='R' then sysdate
-              when STATUS_CODE in ('C','X','E','G') then actual_completion_date
+              when STATUS_CODE in ('C','X','E','G') then nvl(actual_completion_date, sysdate)
               else max(v_timestamp) over () end as max_timestamp
        from system.fnd_concurrent_sessions join apps.fnd_concurrent_requests b using (request_id,parent_request_id)
-       start with request_id in  ('&1')
+       start with request_id in  (&1)
         connect by nocycle parent_request_id = prior request_id and b.RESUBMIT_INTERVAL is null
         and module not like 'oratop@%')
 --select * from sids
@@ -89,7 +89,7 @@ with sids as
         ROOT_request_id
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', parent_request_id)    as parent_request_id
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', request_id)           as request_id
-      , decode(instr(upper('&2'), 'SID'), 0, 'na', instance_number)      as inst
+      , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)      as inst
       , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)                  as sid
       , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)              as serial
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)     as top_level_sql_id
@@ -107,7 +107,7 @@ with sids as
       , count(distinct a.instance_number||a.sample_id) as ash_row
       , sum(count(distinct a.instance_number||a.sample_id)) over (partition by decode(instr(upper('&2'), 'REQ'), 0, 'na', parent_request_id)
                                                                              , decode(instr(upper('&2'), 'REQ'), 0, 'na', request_id)
-                                                                             , decode(instr(upper('&2'), 'SID'), 0, 'na', instance_number)
+                                                                             , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)
                                                                              , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)
                                                                              , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)
                                                                              , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)
@@ -126,8 +126,9 @@ with sids as
       , max(snap_id) as max_snap_id
 --      , trim(to_char(RATIO_TO_REPORT(count(distinct a.instance_number||a.sample_id)) OVER() * 100, '990.99')||'%') AS DBTime_percent
 --      , count(distinct a.instance_number||a.sample_id) OVER() AS DBTime_rows2
-      , count(distinct s.inst_id||' '||s.sid||' '||s.serial#) as sids_sids
-      , count(distinct s.request_id)                          as sids_reqs
+, a.instance_number, a.session_id, a.session_serial#, s.request_id as req
+----      , count(distinct inst_id||' '||sid||' '||serial#) as sids_sids
+----      , count(distinct s.request_id)                          as sids_reqs
         from AWR_CDB_ACTIVE_SESS_HISTORY a
         join sids s on ((a.instance_number, a.session_id, a.session_serial#) in ((s.inst_id, s.sid, s.serial#)) or (qc_instance_id, qc_session_id, qc_session_serial#) in ((s.inst_id, s.sid, s.serial#)))
          and a.SAMPLE_TIME between min_timestamp and max_timestamp
@@ -135,6 +136,7 @@ with sids as
         left join dba_hist_sqltext t  on t.sql_id  = a.sql_id
         left join dba_hist_sqltext t2 on t2.sql_id = a.top_level_sql_id
       where snap_id between &v_min_snap_id and &v_max_snap_id and a.dbid = &v_DBID
+-----and a.sql_id = '8f3mzav4b845t'
       group by
 --      , request_id, parent_request_id
 --      , instance_number, sid, serial#
@@ -144,7 +146,7 @@ with sids as
         ROOT_request_id
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', parent_request_id)
       , decode(instr(upper('&2'), 'REQ'), 0, 'na', request_id)
-      , decode(instr(upper('&2'), 'SID'), 0, 'na', instance_number)
+      , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)
       , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)
       , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)
@@ -159,6 +161,7 @@ with sids as
       , decode(instr(upper('&2'), 'MOD'), 0, 'na', client_id)
       --, xid
       , decode(session_state,'WAITING',event,session_state)
+, a.instance_number, a.session_id, a.session_serial#, s.request_id
       order by count(distinct a.instance_number||a.sample_id) desc)
 --select * from a
 ----select /*+ monitor */ * from (
@@ -172,10 +175,10 @@ select /*+ monitor */-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE('12.1.0.2')
   , module, action, client_id
   --, xid
   , count(distinct sql_exec_id)                                                             as execs
-----  , count(distinct sid)                                                                     as sids
-  , sids_sids                                                                                   as sids
-  , sids_reqs                                                                                   as requests
-----  , count(distinct request_id)                                                              as requests
+  , count(distinct instance_number||' '||session_id||' '||session_serial#)                  as sids
+----  , sids_sids                                                                                   as sids
+----  , sids_reqs                                                                                   as requests
+  , count(distinct req)                                                                     as reqs
   , sum(ash_row)                                                                            as ash_rows
   , round(sum(ash_row)/decode(count(distinct sql_exec_id),0,1,count(distinct sql_exec_id))) as per_execs
   , max(max_sample_time)-min(min_sample_time)                                               as rough_duration
@@ -203,8 +206,8 @@ select /*+ monitor */-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE('12.1.0.2')
   , SQL_TEXT
   , TOP_SQL_TEXT
   --, EVENT
-  , sids_sids
-  , sids_reqs
+----  , sids_sids
+----  , sids_reqs
   order by sum(ash_row)desc--max(sample_time) desc--
 ----) where rownum <= nvl('&3', 10)
 fetch first nvl('&3', 10) rows only

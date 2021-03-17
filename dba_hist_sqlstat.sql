@@ -75,3 +75,4 @@ group by SQL_EXEC_START, sql_exec_id, sql_plan_hash_value, module, action
 order by 1
 */
 /
+--@@dba_hist_sqlstat2

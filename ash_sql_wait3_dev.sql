@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait3_dev "event = 'log file sync'" 100 "gv$active_session_history ash where sample_time > sysdate-1/24" "SQL CLI, OBJ, SERV, PLAN, CALL, MODULE, ACTION"
+-- Usage: SQL> @ash_sql_wait3_dev "event = 'log file sync'" 100 "gv$active_session_history ash where sample_time > sysdate-1/24" "SQL CLI, OBJ, SERV, PLAN, CALL, MODULE, ACTION ROWID"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -64,7 +64,8 @@ decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, a
 --case when session_state='WAITING' and p1text='handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
 In_hard_Parse,
 In_Parse,
-In_Sql_Execution,
+In_Sql_Execution as In_Sql_Exec,
+in_connection_mgmt as In_conn_mgmt,
 --sql_adaptive_plan_resolved as ADAPTIVE,
 --sql_child_number,
 --machine,
@@ -84,7 +85,7 @@ decode(instr(upper('&&4'), 'CALL'), 0, 'Not Req.', top_level_call_name) as top_l
        count(distinct ash.inst_id||session_id||session_serial#) as SESS_COUNT,
 --       max(count(distinct ash.inst_id||session_id||session_serial#)) over (partition by sample_time) as SESS_N_COUNT,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
-       blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
+       blocking_session_status||' i#'||blocking_inst_id as BLOCKING_SID,
 SQL_OPNAME,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime
@@ -154,7 +155,8 @@ nvl2(xid,' X ',''),
 --       p1text, p1,
 In_hard_Parse,
 In_Parse,
-In_Sql_Execution
+In_Sql_Execution,
+in_connection_mgmt
 --machine,
 --program,
 --module,

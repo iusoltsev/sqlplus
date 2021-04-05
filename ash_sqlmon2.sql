@@ -1,6 +1,6 @@
 --
 -- SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "where sample_time > trunc(sysdate,'hh24')" r
+-- Usage: SQL> @ash_sqlmon2 &sql_id [&plan_hash_value] [&sql_exec_id] "Gv$active_session_history where sample_time > trunc(sysdate,'hh24')" r
 -- 
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
@@ -21,7 +21,7 @@ col ACCESS_PREDICATES for a60
 col FILTER_PREDICATES for a60
 
 with
- ash0 as (select * from Gv$active_session_history &&4),
+ ash0 as (select * from &4),
  sid_time as -- List of sessions and their start/stop times
  (select nvl(qc_session_id, session_id) as qc_session_id,
          session_id,
@@ -80,6 +80,7 @@ select  sql_id,
                                                                                                                    ,'; ') as WAIT_PROFILE,
         max(SID_COUNT)-1 as PX_COUNT,
         max(MAX_SAMPLE_TIME) as MAX_SAMPLE_TIME,
+        min(MIN_SAMPLE_TIME) as MIN_SAMPLE_TIME,
         max(MAX_TEMP_SPACE_ALLOCATED) as MAX_TEMP_SPACE_ALLOCATED,
         max(max_pga_allocated) as max_pga_allocated
 from ash
@@ -150,6 +151,7 @@ select   sql_id,
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
 --     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
      and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
+     and dbid in (select dbid from v$database)
   union
 select   sql_id,
          plan_hash_value,
@@ -170,6 +172,7 @@ select   sql_id,
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
 --     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
      and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
+     and dbid in (select dbid from v$database)
   union                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
          sql_id,
@@ -240,6 +243,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat
  where (sql_plan_hash_value = 0 and sql_opname not in ('INSERT'))
     or (sql_opname in ('INSERT') and sql_plan_hash_value = 0 and SQL_EXEC_ID is null)
@@ -264,6 +268,7 @@ select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but 
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat
  where sql_plan_hash_value > 0
    and sql_exec_id is null
@@ -288,6 +293,7 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   FROM pt
 ----  left -- 2exclude empty
  join ash_stat
@@ -321,6 +327,7 @@ SELECT case when pt.id =0 then 'Main Query' -- direct SQL plan+stats
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, to_char(ash_stat.MIN_SAMPLE_TIME,'dd.mm hh24:mi:ss') as MIN_SAMPLE_TIME, to_char(ash_stat.MAX_SAMPLE_TIME,'dd.mm hh24:mi:ss') as MAX_SAMPLE_TIME
   FROM pt
   left join ash_stat
   on pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
@@ -352,6 +359,7 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
        0 as MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   FROM pt
   left join ash_stat_recrsv ash_stat
   on pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
@@ -407,6 +415,7 @@ select 'OtherRec.Waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stat
        0 as MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat_recrsv ash_stat
   left join dba_procedures p on ash_stat.plsql_entry_object_id     = p.object_id and
                                 ash_stat.plsql_entry_subprogram_id = p.subprogram_id
@@ -431,6 +440,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        null as MAX_TEMP_SPACE_ALLOCATED,
        count(*) as ASH_ROWS,
        ' ash rows were fixed from ' || to_char(min(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') || ' to ' || to_char(max(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash0
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
          (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
@@ -455,6 +465,7 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
        null as MAX_TEMP_SPACE_ALLOCATED,
        null as ASH_ROWS,
        null as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash0
    where sql_id               = '&&1' and                                -- direct SQL exec ONLY
          (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
@@ -480,6 +491,7 @@ select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
        null as MAX_TEMP_SPACE_ALLOCATED,
        sum(WAIT_COUNT) as ASH_ROWS,
        null as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
   group by sql_id
@@ -503,6 +515,7 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        null as MAX_TEMP_SPACE_ALLOCATED,
        sum(WAIT_COUNT) as ASH_ROWS,
        null as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
 /

@@ -1,7 +1,7 @@
 --
 -- ASH script for SQLs and objects grouping from cluster waits concurrency for the same db blocks
 -- May be useful for the Cluster waits problem periods
--- Usage: SQL> @ash_sql_cluster_block_waits "05.09 16:20" "05.09 17:10" 43kfr3uthbugg 2 500
+-- Usage: SQL> @ash_sql_cluster_block_waits gv$active_session_history "05.09 16:20" "05.09 17:10" 43kfr3uthbugg 2 500
 -- by Igor Usoltsev
 --
 
@@ -17,16 +17,17 @@ col SQL_OPNAME2 for a12
 col object_type for a20
 col object_name for a40
 
-with ash as (select /*+ MATERIALIZE*/ * from gv$active_session_history--ash_201409051700--
---             where sample_time between nvl(to_date('&1','dd.mm hh24:mi'),sysdate-1e6) and nvl(to_date('&2','dd.mm hh24:mi'),sysdate+1e6)
+with ash as (select /*+ MATERIALIZE*/ * from &1--gv$active_session_history--SYSTEM.ASH_201910251806--
+             where sample_time between nvl(to_date('&2','dd.mm hh24:mi'),sysdate-1e6) and nvl(to_date('&3','dd.mm hh24:mi'),sysdate+1e6)
              )
 select ash1.inst_id          as INST_ID1,
-       REGEXP_SUBSTR(ash1.client_id, '.+\#') as CLIENT_ID,
+--       REGEXP_SUBSTR(ash1.client_id, '.+\#') as CLIENT_ID,
        ash1.sql_opname       as SQL_OPNAME1,
        ash1.sql_id           as SQL_ID1,
        ash1.event            as EVENT1,
        ash1.blocking_inst_id as ASH_BLOCK_INST,    -- блокирующий INST_ID по версии ASH
        ash2.inst_id          as REM_BLOCK_INST,    -- блокирующий INST_ID по конкуренции за блоки бд
+--       REGEXP_SUBSTR(ash2.client_id, '.+\#') as BLK_CLIENT_ID,
        ash2.sql_opname       as SQL_OPNAME2,
        ash2.sql_id           as SQL_ID2,
        ash2.event            as EVENT2,
@@ -44,12 +45,13 @@ join ash ash2 on ash1.current_file#  = ash2.current_file#
              and ash1.p1text         = ash2.p1text
              and ash1.inst_id       <> ash2.inst_id                              -- с разных нод
              and ash2.sample_time    > ash1.sample_time                          -- недублированные
-             and (ash1.sql_id in (nvl('&&3',ash1.sql_id)) or ash2.sql_id in (nvl('&&3',ash2.sql_id)))
-             and to_char(ash2.sample_time,'SSSSS') - to_char(ash1.sample_time,'SSSSS') <= nvl('&4', 1) -- почти одновременные
+             and (ash1.sql_id in (nvl('&4',ash1.sql_id)) or ash2.sql_id in (nvl('&4',ash2.sql_id)))
+             and to_char(ash2.sample_time,'SSSSS') - to_char(ash1.sample_time,'SSSSS') <= nvl('&5', 1) -- почти одновременные
 left join dba_objects o on ash1.current_obj# = object_id
 where ash1.wait_class    = 'Cluster'                                             -- кластерные
   and ash1.p1text        = 'file#'                                               -- блок-ориентированные
   and ash1.session_state = 'WAITING'                                             -- ожидания
+--  and ash1.event = nvl('&7', ash1.event)
 group by ash1.inst_id,
          ash1.sql_opname,
          ash1.sql_id,
@@ -59,10 +61,11 @@ group by ash1.inst_id,
          ash2.sql_opname,
          ash2.sql_id,
          ash2.event,
+--         REGEXP_SUBSTR(ash2.client_id, '.+\#'),
          o.object_type,
-         o.object_name,
-         REGEXP_SUBSTR(ash1.client_id, '.+\#')
-having count(*) > nvl('&5', 0)
+         o.object_name
+--,        REGEXP_SUBSTR(ash1.client_id, '.+\#')
+having count(*) > nvl('&6', 0)
 order by count(*) desc
 /
 set feedback on echo off VERIFY ON

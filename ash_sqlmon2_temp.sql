@@ -1,6 +1,6 @@
 --
 -- SQL Plan Statistics from ASH (including recursive queries and PL/SQL)
--- Usage: SQL> @ash_sqlmon2_temp &sql_id [&plan_hash_value] [&sql_exec_id] "scott.ash_201704071420 where sample_time < trunc(sysdate,'hh24')"
+-- Usage: SQL> @ash_sqlmon2_temp &sql_id [&plan_hash_value] [&sql_exec_id] "scott.ash_201704071420 where sample_time < trunc(sysdate,'hh24')" r
 -- 
 
 set feedback off heading on timi off pages 500 lines 1000 echo off  VERIFY OFF
@@ -15,8 +15,10 @@ col WAIT_PROFILE for a200
 col LAST_PLSQL for a45
 col ID for 9999
 col OBJECT_OWNER for a16
-col OBJECT_NAME for a30
+col OBJECT_NAME for a60
 col QBLOCK_NAME for a15
+col ACCESS_PREDICATES for a60
+col FILTER_PREDICATES for a60
 
 with
  ash0 as (select * from &4),
@@ -99,11 +101,13 @@ group by sql_id,
          max(sample_time)                                                    as MAX_SAMPLE_TIME,
          count(distinct sql_exec_id)                                         as SQL_EXEC_COUNT
     from ash0 sh, sid_time
-   where ((sh.top_level_sql_id = sid_time.sql_id and sh.sql_id != sid_time.sql_id or sh.sql_id is null) and-- recursive SQLs
+   where ((--sh.top_level_sql_id = sid_time.sql_id and
+                                                       sh.sql_id != sid_time.sql_id or sh.sql_id is null) and-- recursive SQLs
           sh.session_id       = sid_time.session_id and
           sh.session_serial#  = sid_time.session_serial# and
           nvl(sh.qc_session_id, sh.session_id) = sid_time.qc_session_id and
           sh.sample_time between sid_time.MIN_SQL_EXEC_TIME and sid_time.MAX_SQL_EXEC_TIME)
+AND upper('&5')='R'
    group by sh.sql_id, nvl(sql_plan_hash_value, 0), nvl(sql_plan_line_id, 0), decode(session_state,'WAITING',event,session_state),
             decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_object_id),
             decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_subprogram_id))
@@ -133,7 +137,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name,
+         object_name
+||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'-- from 12.2
+	) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -153,6 +160,7 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -172,7 +180,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name,
+         object_name
+||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
+	) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+ access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -219,6 +230,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        null as object_alias,
        null as object_owner,
        null as object_name,
+ '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -242,6 +254,7 @@ select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but 
        null as object_alias,
        null as object_owner,
        null as object_name,
+ '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -265,6 +278,7 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -297,6 +311,7 @@ SELECT case when pt.id =0 then 'Main Query' -- direct SQL plan+stats
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ pt.access_predicates, pt.filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -327,6 +342,7 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
+ '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -381,6 +397,7 @@ select 'OtherRec.Waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stat
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -404,6 +421,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -427,6 +445,7 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -451,6 +470,7 @@ select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -473,6 +493,7 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        null,
        null,
        null,
+ '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,

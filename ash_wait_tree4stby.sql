@@ -22,6 +22,7 @@ select LEVEL as LVL,
 				case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(FOREGROUND)'
 					when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
 					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+					when REGEXP_INSTR(program, '\(PR..\)')     > 0 then '(PR..)'
 					when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
 					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
 				end as BLOCKING_TREE,
@@ -43,6 +44,7 @@ connect by nocycle prior ash.SAMPLE_ID = ash.SAMPLE_ID
 				case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(FOREGROUND)'
 					when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
 					when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
+					when REGEXP_INSTR(program, '\(PR..\)')     > 0 then '(PR..)'
 					when REGEXP_INSTR(program, '\(P...\)')     > 0 then '(P...)'
 					else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
 				end,

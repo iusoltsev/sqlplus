@@ -19,7 +19,27 @@ set wrap on
 set linesize 80
 select * from (
    select case when (kglhdadr =  kglhdpar) then 'Parent' else 'Child '||kglobt09 end cursor,
+             kglhdadr ADDRESS,substr(kglnaobj,1,20) name, kglnahsh hash_value,kglobtyd type,kgloblct--kglobt23
+              LOCKED_TOTAL,kglobpct--kglobt24
+               PINNED_TOTAL,kglhdexc EXECUTIONS,kglhdnsp NAMESPACE
+              from x$kglob
+               order by kglobpct--kglobt24
+                desc)
+where rownum <= 10
+/
+select * from (
+   select case when (kglhdadr =  kglhdpar) then 'Parent' else 'Child '||kglobt09 end cursor,
+             kglhdadr ADDRESS,substr(kglnaobj,1,20) name, kglnahsh hash_value,kglobtyd type,kgloblct--kglobt23
+              LOCKED_TOTAL,kglobpct--kglobt24
+               PINNED_TOTAL,kglhdexc EXECUTIONS,kglhdnsp NAMESPACE
+              from x$kglob
+               order by kgloblct--kglobt23
+                desc)
+where rownum <= 10
+/
+/*select * from (
+   select case when (kglhdadr =  kglhdpar) then 'Parent' else 'Child '||kglobt09 end cursor,
              kglhdadr ADDRESS,substr(kglnaobj,1,20) name, kglnahsh hash_value,kglobtyd type,kglobt23 LOCKED_TOTAL,kglobt24 PINNED_TOTAL,kglhdexc EXECUTIONS,kglhdnsp NAMESPACE 
                from x$kglob  
                order by kglobt24 desc)
-where rownum <= 10;
+where rownum <= 10;*/

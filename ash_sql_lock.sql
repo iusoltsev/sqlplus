@@ -1,7 +1,7 @@
 --
 -- ASH lock tree for condition
--- Usage: SQL> @ash_sql_lock "event = 'enq: TX - row lock contention' and sql_id = '8matphjwpgg7k'" 100
---                                                                                                  ^min wait count
+-- Usage: SQL> @ash_sql_lock "gv$active_session_history where event = 'enq: TX - row lock contention' and sql_id = '8matphjwpgg7k'" 100
+--                                                                                                                                  ^min wait count
 -- http://iusoltsev.wordpress.com
 --
 
@@ -37,8 +37,8 @@ with ash_locks as
          BLOCKING_SESSION_SERIAL#,
          event,
          sample_time
-    from gv$active_session_history --ASH_201604191243 --dba_hist_active_sess_history
-   where &1 -- event = 'enq: TX - row lock contention' and snap_id = 325800
+    from &1--gv$active_session_history --ASH_201604191243 --dba_hist_active_sess_history
+--   where  -- event = 'enq: TX - row lock contention' and snap_id = 325800
      and BLOCKING_SESSION > 0
  )
 , ash_lockers as 

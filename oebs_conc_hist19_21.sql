@@ -1,6 +1,6 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
--- Usage: SQL> @oebs_conc_hist19_21 91911537    [SQL]|REQ|SID|MOD [10]
+-- Usage: SQL> @oebs_conc_hist19_21 91911537    [SQL]|TOP|REQ|SID|MOD|"PL/" [10]
 --                                 ^Request_id  ^FieldSelector    ^topN_sql
 --
 
@@ -92,12 +92,12 @@ with sids as
       , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)      as inst
       , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)                  as sid
       , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)              as serial
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)     as top_level_sql_id
+      , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)     as top_level_sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)               as sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)  as sql_plan_hash_value
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' ')) as TOP_SQL_TEXT
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)  as PLSQL
+      , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' ')) as TOP_SQL_TEXT
+      , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)  as PLSQL
       , sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
       , decode(instr(upper('&2'), 'MOD'), 0, 'na', a.module)     as module
       , decode(instr(upper('&2'), 'MOD'), 0, 'na', action)     as action
@@ -110,7 +110,7 @@ with sids as
                                                                              , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)
                                                                              , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)
                                                                              , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)
-                                                                             , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)
+                                                                             , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)
                                                                              , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)
                                                                              , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)
                                                                              --, decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
@@ -149,12 +149,12 @@ with sids as
       , decode(instr(upper('&2'), 'SID'), 0, 'na', inst_id)
       , decode(instr(upper('&2'), 'SID'), 0, 'na', sid)
       , decode(instr(upper('&2'), 'SID'), 0, 'na', serial#)
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', top_level_sql_id)
+      , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' '))
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)
+      , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' '))
+      , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)
       , sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
       , decode(instr(upper('&2'), 'MOD'), 0, 'na', a.module)
       , decode(instr(upper('&2'), 'MOD'), 0, 'na', action)

@@ -15,9 +15,9 @@ select inst_id,
             /
             (select sum(user_bytes) from dba_temp_files where tablespace_name = 'TEMP')*100) as "TEMP%",
        to_char(max(pga_allocated),'999,999,999,999')           as max_pga,
-       max(px) - 1                                             as px,
+       max(px) - 1                                             as px
 --(select substr(sql_text,1,200) as sql_text from gv$sqlarea a where a.sql_id = sql_id union select dbms_lob.substr(sql_text,200) from dba_hist_sqltext a where a.sql_id = sql_id) as sql_text
-(select NVL(substr(a.sql_text,1,200), dbms_lob.substr(h.sql_text,200)) as sql_text from gv$sqlarea a, dba_hist_sqltext h where a.sql_id = s.sql_id and  a.sql_id = h.sql_id) as sql_text
+--,(select NVL(substr(a.sql_text,1,200), dbms_lob.substr(h.sql_text,200)) as sql_text from gv$sqlarea a, dba_hist_sqltext h where a.sql_id = s.sql_id and  a.sql_id = h.sql_id) as sql_text
   from (select inst_id                             as inst_id,
                sample_time,
                sql_id,

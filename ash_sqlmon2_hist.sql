@@ -13,7 +13,7 @@ col ID for 9999
 col OBJECT_OWNER for a12
 col OBJECT_NAME for a30
 col QBLOCK_NAME for a14
-col PLAN_OPERATION for a75
+col PLAN_OPERATION for a120
 col OBJECT_ALIAS for a45
 
 with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR snap_id between '&&4' and nvl('&&5', '&&4') &6),
@@ -24,6 +24,7 @@ with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR 
          sql_id,
          min(sample_time)            as MIN_SQL_EXEC_TIME,
          max(sample_time)            as MAX_SQL_EXEC_TIME
+, max(top_level_sql_id)	as top_level_sql_id
     from ash0
    where sql_id = '&&1'
      and NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0))
@@ -70,6 +71,7 @@ select  sql_id,
                                                                                                                    ,'; ') as WAIT_PROFILE,
         max(SID_COUNT)-1 as PX_COUNT,
         max(MAX_SAMPLE_TIME) as MAX_SAMPLE_TIME,
+        min(MIN_SAMPLE_TIME) as MIN_SAMPLE_TIME,
         max(MAX_TEMP_SPACE_ALLOCATED) as MAX_TEMP_SPACE_ALLOCATED,
         max(max_pga_allocated) as max_pga_allocated
 from ash
@@ -87,9 +89,12 @@ group by sql_id,
          decode(session_state,'WAITING',event,session_state) as EVENT,
          count(*)                                            as WAIT_COUNT,
          min(sample_time)                                    as MIN_SAMPLE_TIME,
-         max(sample_time)                                    as MAX_SAMPLE_TIME
+         max(sample_time)                                    as MAX_SAMPLE_TIME,
+         count(distinct sql_exec_id)                                         as SQL_EXEC_COUNT
     from ash0 sh, sid_time
-   where ((sh.top_level_sql_id = sid_time.sql_id and sh.sql_id != sid_time.sql_id or sh.sql_id is null) and-- recursive SQLs
+   where ((   sh.top_level_sql_id = sid_time.sql_id           and sh.sql_id != sid_time.sql_id
+           or sh.top_level_sql_id = sid_time.top_level_sql_id and sh.sql_id != sid_time.sql_id
+           or sh.sql_id is null) and-- recursive SQLs
           sh.session_id       = sid_time.session_id and
           sh.session_serial#  = sid_time.session_serial# and
           nvl(sh.qc_session_id, sh.session_id) = sid_time.qc_session_id and
@@ -132,6 +137,7 @@ select   sql_id,
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
      and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash))
+     and dbid in (select dbid from v$database)
   union
 select   sql_id,
          plan_hash_value,
@@ -150,6 +156,7 @@ select   sql_id,
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
      and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+     and dbid in (select dbid from v$database)
   union                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
          sql_id,
@@ -237,6 +244,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat
  where sql_plan_hash_value = 0
 UNION ALL
@@ -258,6 +266,7 @@ select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but 
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat
  where sql_plan_hash_value > 0
    and sql_exec_id is null
@@ -281,6 +290,7 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   FROM pt
   left join ash_stat
   on --pt.parent_id       = -2 and
@@ -312,6 +322,7 @@ SELECT case when pt.id =0 then 'Main Query' -- direct SQL plan+stats
        ash_stat.MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, to_char(ash_stat.MIN_SAMPLE_TIME,'dd.mm hh24:mi:ss') as MIN_SAMPLE_TIME, to_char(ash_stat.MAX_SAMPLE_TIME,'dd.mm hh24:mi:ss') as MAX_SAMPLE_TIME
   FROM pt
   left join ash_stat
   on pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
@@ -342,6 +353,7 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
        0 as MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   FROM pt
   left join ash_stat_recrsv ash_stat
   on pt.id              = NVL(ash_stat.sql_plan_line_id,0) and
@@ -373,6 +385,7 @@ select 'Recurs.waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
        0 as MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat_recrsv ash_stat
  where sql_id is null
    and ash_stat.plsql_entry_object_id is null
@@ -395,14 +408,15 @@ select 'PL/SQL' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stats
        0 as MAX_TEMP_SPACE_ALLOCATED,
        ash_stat.ASH_ROWS,
        ash_stat.WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_stat_recrsv ash_stat
   join dba_procedures p on ash_stat.plsql_entry_object_id     = p.object_id and
                                 ash_stat.plsql_entry_subprogram_id = p.subprogram_id
  where sql_id is null
 UNION ALL
 select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
-       '',
-       0 as plan_hash_value,
+       sql_id,
+       sql_plan_hash_value as plan_hash_value,
        0 as sql_plan_line_id,
        'ASH fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
        null,
@@ -418,9 +432,58 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        null as MAX_TEMP_SPACE_ALLOCATED,
        count(*) as ASH_ROWS,
        ' ash rows were fixed from ' || to_char(min(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') || ' to ' || to_char(max(SAMPLE_TIME),'dd.mm.yyyy hh24:mi:ss') as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash0
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
          sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) and
          NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+group by sql_id, sql_plan_hash_value
+UNION ALL
+select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
+       sql_id,
+       to_number(null) as sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || sum(WAIT_COUNT) || '; Dist.Execs: ' || max(SQL_EXEC_COUNT) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+ --'' as access_predicates, '' as filter_predicates,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       sum(WAIT_COUNT) as ASH_ROWS,
+       null as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
+  from ash_recrsv
+   where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
+  group by sql_id
+UNION ALL
+select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
+       '',
+       to_number(null) as sql_plan_hash_value,
+       to_number(null) as sql_plan_line_id,
+       'ASH rows: ' || sum(WAIT_COUNT) as PLAN_OPERATION,
+       null,
+       null,
+       null,
+       null,
+-- '' as access_predicates, '' as filter_predicates,
+       null,
+       null,
+       null,
+       null as temp_space,
+       null as PX,
+       null as max_pga_allocated,
+       null as MAX_TEMP_SPACE_ALLOCATED,
+       sum(WAIT_COUNT) as ASH_ROWS,
+       null as WAIT_PROFILE
+, '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
+  from ash_recrsv
+   where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
 /
 set feedback on VERIFY ON timi on

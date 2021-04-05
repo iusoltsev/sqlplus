@@ -12,6 +12,7 @@ col EVENT for a64
 col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col SQL_ID for a13
+col program for a60
 
 with hs as
  (select level lvl,

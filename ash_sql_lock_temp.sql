@@ -37,7 +37,7 @@ with ash_locks as
          BLOCKING_SESSION_SERIAL#,
          event,
          sample_time
-    from SYSTEM.ASH_201711020939
+    from SYSTEM.ASH_202001311622--SYSTEM.ASH_201711020939
    where &1 -- event = 'enq: TX - row lock contention' and snap_id = 325800
      and BLOCKING_SESSION > 0
  )

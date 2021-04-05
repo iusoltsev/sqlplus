@@ -56,7 +56,7 @@ select /*+ rule*/ LEVEL as LVL,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_ENTRY_OBJECT_ID,
 --       p2.owner||'.'||p2.object_name||'.'||p2.procedure_name as PLSQL_OBJECT_ID,
        o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
---       blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
+       blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime,
        nvl(plsql_entry_object_id, plsql_object_id)||'.'||nvl(plsql_entry_subprogram_id, plsql_subprogram_id) as PLSQL_OBJECT_ID,
@@ -107,7 +107,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
 --          p2.owner||'.'||p2.object_name||'.'||p2.procedure_name,
 --          o.owner||'.'||o.object_name||'.'||o.subobject_name,
---          blocking_session_status||' i#'||blocking_inst_id,
+          blocking_session_status||' i#'||blocking_inst_id,
        nvl(plsql_entry_object_id, plsql_object_id)||'.'||nvl(plsql_entry_subprogram_id, plsql_subprogram_id),
        sql_ID
       ,sql_plan_hash_value

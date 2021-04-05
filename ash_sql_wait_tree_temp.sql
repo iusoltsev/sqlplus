@@ -17,12 +17,12 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 
-with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from system.ash_201904291206--SYSTEM.ASH_201903151853--
+with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* from system.ash_200919_0735_tmp--SYSTEM.ASH_201903151853--
  s &3
 --		where sample_time > sysdate-1/24
 		)
 select LEVEL as LVL,
-----       inst_id,
+       inst_id,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
         case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
@@ -41,6 +41,7 @@ select LEVEL as LVL,
 */
 o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
+decode(event,'enq: TX - row lock contention',DBMS_ROWID.ROWID_CREATE(1, current_OBJ#, current_FILE#, current_BLOCK#, current_ROW#)) as row__id,
 in_parse, in_hard_parse, in_sql_execution, in_plsql_execution,
 --xid,
 nvl2(sql_exec_id, 1, 0) as sql_exec_id,
@@ -84,7 +85,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 --              and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
 ----                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
-----          inst_id,
+          inst_id,
 --          BLOCKING_INST_ID,
         case when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
@@ -102,6 +103,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 */
 o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --decode(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')),''),
+decode(event,'enq: TX - row lock contention',DBMS_ROWID.ROWID_CREATE(1, current_OBJ#, current_FILE#, current_BLOCK#, current_ROW#)),
 in_parse, in_hard_parse, in_sql_execution, in_plsql_execution,
 --xid,
 --machine,

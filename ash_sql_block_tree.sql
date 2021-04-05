@@ -33,9 +33,10 @@ select LEVEL as LVL,
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
-       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
+--       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
-       DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')), p1) as "P1[RAW]",
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch free' then to_char(p1) end as "P1[RAW]",
 --       lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0') as p1raw,
 --       p2,
        count(1) as BLOCK_COUNT,
@@ -78,9 +79,10 @@ connect by nocycle (ash.SAMPLE_ID       = prior ash.SAMPLE_ID or abs(to_char(ash
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end,
-          REGEXP_SUBSTR(client_id, '.+\#'),
+--          REGEXP_SUBSTR(client_id, '.+\#'),
           decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue'),
-          DECODE(p1text, 'handle address', upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')), p1),
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch free' then to_char(p1) end,
 --          lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'),
 --          p2,
           top_level_sql_id,

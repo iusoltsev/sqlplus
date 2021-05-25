@@ -1,6 +1,6 @@
 set verify off
 
-rem col DESCRIPTION for a80
+rem col DESCRIPTION for a120
 col SQL_FEATURE for a40
 
 select *

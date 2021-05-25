@@ -18,7 +18,7 @@ col BLOCK_SESSTAT for a13
 col LAST_CALL_ET  for 999999999999
 col SECS_IN_WAIT  for 999999999999
 col MACHINE       for a36
-col CLNT_PID      for a10
+col CLNT_PID      for a16
 col OSUSER        for a10
 col SPID          for a10
 col REQ_OBJECT    for a61

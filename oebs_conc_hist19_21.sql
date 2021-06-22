@@ -46,10 +46,13 @@ with sids as
        start with request_id in  (&1)
         connect by nocycle parent_request_id = prior request_id and b.RESUBMIT_INTERVAL is null
         and module not like 'oratop@%')
-select  DBID--, con_id
+, minmax_timestamp as (select min(min_timestamp) as min_timestamp, max(max_timestamp) as max_timestamp from sids)
+--select * from minmax_timestamp
+select-- monitor
+        DBID--, con_id
       , min(snap_id) as min_snap_id
       , max(snap_id) as max_snap_id
-        from dba_hist_snapshot, sids
+        from dba_hist_snapshot, minmax_timestamp
        where (min_timestamp between begin_interval_time and end_interval_time
               OR max_timestamp between begin_interval_time and end_interval_time
               OR max_timestamp > end_interval_time and end_interval_time = (select max(end_interval_time) from dba_hist_snapshot))

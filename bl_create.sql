@@ -27,7 +27,8 @@ begin
 --   where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
 where DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
      and sa.sql_id = v_sql_id
-     and origin = 'MANUAL-LOAD';
+--     and origin = 'MANUAL-LOAD'
+;
    res := DBMS_SPM.alter_sql_plan_baseline(v_sql_handle, v_plan_name,'fixed','yes');
    res := DBMS_SPM.alter_sql_plan_baseline(v_sql_handle, v_plan_name,'autopurge','no');
    res := DBMS_SPM.alter_sql_plan_baseline(v_sql_handle, v_plan_name,'description',v_desc);

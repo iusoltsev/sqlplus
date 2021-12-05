@@ -22,13 +22,15 @@ select to_char(INST_ID)||decode(inst_id,sys_context('userenv', 'instance'),'*') 
        sys_context('USERENV', 'SERVICE_NAME') as SERVICE,
        SYS_CONTEXT('USERENV', 'CON_NAME') as CON_NAME,
        HOST_NAME,
-       VERSION,
+--       VERSION,
+       VERSION_FULL,
        d.PLATFORM_NAME as PLATFORM_NAME,
        DATABASE_STATUS,
        DATABASE_ROLE,
        STATUS,
        d.OPEN_MODE,
        to_char(STARTUP_TIME, 'dd.mm.yyyy hh24:mi:ss') as STARTUP_TIME,
+--CAST(scn_to_timestamp(standby_became_primary_scn) AS DATE) as stby_became_pri_TIME,
        to_char(RESETLOGS_TIME, 'dd.mm.yyyy hh24:mi:ss') as RESETLOGS_TIME,
        INSTANCE_ROLE,
        ARCHIVER,
@@ -38,4 +40,5 @@ select to_char(INST_ID)||decode(inst_id,sys_context('userenv', 'instance'),'*') 
 from gv$instance, v$database d
 order by INST_ID;
 
+@@sid
 set feedback on

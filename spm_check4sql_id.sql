@@ -19,6 +19,8 @@ col FIXED         for a5
 col REPROD        for a6
 col PURGE         for a5
 col ADAPT         for a5
+col category      for a30
+col category_aux  for a30
 
 with spm as (SELECT /*+ dynamic_sampling(3) */
                 DECODE(so.obj_type, 1, 'SQL Profile',
@@ -60,6 +62,7 @@ with spm as (SELECT /*+ dynamic_sampling(3) */
                 ad.rows_processed,
                 ad.fetches,
                 ad.end_of_fetch_count
+, so.category, ad.category as category_aux
             FROM
                 sys.sqlobj$        so,
                 sys.sqlobj$auxdata ad,
@@ -89,6 +92,7 @@ to_char(signature,'99999999999999999999') as spm_signature,
 to_char(exact_matching_signature,'99999999999999999999') as sql_exact_signature,
 to_char(force_matching_signature,'99999999999999999999') as sql_force_signature
 , to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
+, category, category_aux
   from spm bl, gv$sqlarea sa
 -- where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
 where DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
@@ -113,6 +117,7 @@ to_char(signature,'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 0),'99999999999999999999'),
 to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'99999999999999999999')
 , to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
+, category, category_aux
   from spm bl, dba_hist_sqltext sa
  where --dbms_lob.compare(bl.sql_text, sa.sql_text) = 0 -- wrong!
        DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text)

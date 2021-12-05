@@ -35,7 +35,8 @@ begin
   		from (select sql_id, sql_text from dba_hist_sqltext where sql_id = '&&SQL_ID')
   	full outer join
        		(select sql_id, sql_fulltext from v$sqlarea where sql_id = '&&SQL_ID')
- 	using (sql_id))
+ 	using (sql_id)
+where rownum <= 1)
   loop
     if v_version like '12.2%' OR substr(v_version,1,2) >= 18
 /*

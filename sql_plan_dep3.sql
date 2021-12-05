@@ -71,6 +71,7 @@ select distinct
        to_char(m.timestamp, 'DD.MM.YY hh24:mi:ss') as LAST_MODIFIED,
        to_char(o.last_ddl_time, 'DD.MM.YY hh24:mi:ss') as LAST_DDL
 ,trim(nvl(i.degree, t.degree)) as DOP
+,CAST(nvl(t.last_analyzed, i.last_analyzed) as DATE) as last_analyzed
 from dba_objects o
 left join (select table_owner, table_name, max(timestamp) as timestamp from dba_tab_modifications group by table_owner, table_name) m
        on m.table_owner = o.owner and m.table_name = o.object_name
@@ -83,10 +84,11 @@ select level,
        lpad('  ', 2 * level) || type || ' ' || owner || '.' || name as DEP_TREE,
        lpad('>', level, '>') as DEPENDS_ON,
        dependency_type as type,
-       referenced_type || ' ' || referenced_owner || '.' || referenced_name as REFERENCED,
-       to_char(m.timestamp, 'DD.MM.YY hh24:mi:ss') as LAST_MODIFIED
+       referenced_type || ' ' || referenced_owner || '.' || referenced_name as REFERENCED
+,      to_char(m.timestamp, 'DD.MM.YY hh24:mi:ss') as LAST_MODIFIED
 ,'' as LAST_DDL
 ,'' as DOP
+,cast('' as DATE) as last_analyzed
   from dba_dependencies
   left join (select table_owner, table_name, max(timestamp) as timestamp from dba_tab_modifications group by table_owner, table_name) m
     on m.table_owner = referenced_owner and m.table_name = referenced_name

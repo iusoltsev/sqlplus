@@ -89,7 +89,7 @@ select s.inst_id    as INST,
        SQL_PROFILE,
        IS_OBSOLETE
   from gv$sql s
-  join (select inst_id, child_address, sql_id, dbms_lob.substr(reason,3990) as REASON from gv$sql_shared_cursor) sc0
+LEFT  join (select inst_id, child_address, sql_id, dbms_lob.substr(reason,3990) as REASON from gv$sql_shared_cursor) sc0
        on s.inst_id = sc0.inst_id and s.sql_id = sc0.sql_id and s.child_address = sc0.child_address
   LEFT join (select sql_id,
                     inst_id,
@@ -124,8 +124,8 @@ select s.inst_id    as INST,
    and (s.PLAN_HASH_VALUE = NVL('&&2',s.PLAN_HASH_VALUE) or '&&2' = '0')
 order by 
       s.last_active_time,
-      s.last_load_time,
-      s.inst_id
+      s.last_load_time
+--,   s.inst_id
 /
 @@"v$sqlstats2" &&1 &&2
 pro
@@ -137,6 +137,7 @@ select * from (select inst_id,
                       sql_plan_hash_value,
                       sql_full_plan_hash_value,
                       sql_exec_id,
+                      sql_child_number as child,
 case when sysdate - cast(max(sample_time) as date) <= 1/86400 then '*' else ' ' end as C,
                --       sql_child_number                    as CHILD_ID,
                       count(distinct sample_time)         as ash_rows,
@@ -151,6 +152,7 @@ case when sysdate - cast(max(sample_time) as date) <= 1/86400 then '*' else ' ' 
                               sql_plan_hash_value,
                               sql_full_plan_hash_value,
                               sql_exec_id,
+                              sql_child_number,
                               count(distinct inst_id||','||session_id||','||session_serial#) as PX,
                               sum(temp_space_allocated)           as temp_space_allocated
                , REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID
@@ -159,10 +161,10 @@ case when sysdate - cast(max(sample_time) as date) <= 1/86400 then '*' else ' ' 
                           and (sql_plan_hash_value = NVL('&&2',sql_plan_hash_value) or '&&2' = '0')
                --           and sql_exec_id > 0
                         group by inst_id, sample_time, sql_id--, sql_child_number
-                               , sql_exec_id, sql_plan_hash_value
+                               , sql_exec_id, sql_plan_hash_value, sql_child_number
                , sql_full_plan_hash_value
                , REGEXP_SUBSTR(client_id, '.+\#'))
-               group by inst_id, sql_id, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id
+               group by inst_id, sql_id, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, sql_child_number
                order by count(distinct sample_time) desc)
 where rownum <= NVL('&3',25)
 /

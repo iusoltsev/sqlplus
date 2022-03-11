@@ -21,6 +21,7 @@ break on WHEN
 select * from (
 SELECT to_char(min(begin_interval_time),'DD-Mon-YY HH24:MI') || ' - ' ||
        to_char(max(end_interval_time),'DD-Mon-YY HH24:MI') as WHEN,
+obj#,
        nvl(dhso.object_name, 'obj#'||obj#||' dataobj#'||dataobj#) as object_name,
        dhso.subobject_name,
        dhso.object_type,
@@ -30,18 +31,21 @@ SELECT to_char(min(begin_interval_time),'DD-Mon-YY HH24:MI') || ' - ' ||
 round((RATIO_TO_REPORT(sum(db_block_changes_delta)) OVER ())*100,2)--,'99.00')
  as REDO_PERCENT
 , dhss.con_id
+, instance_number
   FROM dba_hist_seg_stat dhss
-       join dba_hist_snapshot dhs using(snap_id, instance_number)
-       left join dba_hist_seg_stat_obj dhso  using(obj#, dataobj#)
+       join dba_hist_snapshot dhs           using(snap_id, instance_number, dbid)
+       left join dba_hist_seg_stat_obj dhso using(obj#, dataobj#, dbid)
        left join dba_indexes i on dhso.owner = i.owner and dhso.object_name = i.index_name and dhso.object_type like 'INDEX%'
   WHERE begin_interval_time BETWEEN to_date('&&1', 'DD-Mon-YY HH24:MI')
                                 AND to_date('&&2', 'DD-Mon-YY HH24:MI')
   GROUP BY --to_char(begin_interval_time,'YY-MM-DD HH24:MI'),
        dhso.object_type,
+obj#,
        nvl(dhso.object_name, 'obj#'||obj#||' dataobj#'||dataobj#),
        dhso.subobject_name,
        i.table_name
 , dhss.con_id
+, instance_number
   ORDER BY --to_char(begin_interval_time,'YY-MM-DD HH24:MI'),
            db_block_changes desc
 ) where rownum <= &&3

@@ -4,7 +4,7 @@
 -- The Snap Table ASH_201507071743 was successfully created in tablespace USERS
 --
 set echo off feedback off heading on VERIFY OFF serveroutput on
-select inst_id, min(sample_time) from gv$active_session_history group by inst_id
+select to_char(inst_id) as inst_id , min(sample_time) from gv$active_session_history group by to_char(inst_id)
 /
 declare
     sdate char(12) := to_char(sysdate,'YYYYMMDDHH24MI');
@@ -26,14 +26,14 @@ begin
   create table SYSTEM.ASH_' || sdate ||' tablespace '|| def_ts ||' as
   select ash.* from gv$active_session_history ash';
   end if;
-
+/*
   execute immediate '
   create table SYSTEM.SQLMON_' || sdate ||' tablespace '|| def_ts ||' as
   select * from gv$sql_plan_monitor';
-
+*/
   dbms_output.put_line(' --- ');
   dbms_output.put_line(' --- The Snap Table SYSTEM.ASH_' || sdate ||' was successfully created in tablespace '|| def_ts);
-  dbms_output.put_line(' --- The Snap Table SYSTEM.SQLMON_' || sdate ||' was successfully created in tablespace '|| def_ts);
+--  dbms_output.put_line(' --- The Snap Table SYSTEM.SQLMON_' || sdate ||' was successfully created in tablespace '|| def_ts);
   dbms_output.put_line(' --- ');
 end;
 /

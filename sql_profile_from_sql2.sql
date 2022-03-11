@@ -12,7 +12,8 @@ DECLARE
   v_sql_text CLOB;
 BEGIN
   begin
-    select sql_text into v_sql_text from dba_hist_sqltext where sql_id = '&&3';
+    select sql_text into v_sql_text from dba_hist_sqltext where sql_id = '&&3'
+								and rownum <= 1; -- CDB
   exception when no_data_found then select sql_fulltext into v_sql_text from v$sqlarea where sql_id = '&&3';
   end;
     for hint_rec in (select hint

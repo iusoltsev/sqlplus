@@ -20,6 +20,10 @@ col TYPE      for a40
 --col FORCE_MATCHING_SIGNATURE for a30
 @@sysdate
 
+select round(value/1024/1024) as "    maximum PGA allocated" from v$pgastat where name='maximum PGA allocated';
+select round(value/1024/1024) as "MGA allocated (under PGA)" from v$pgastat where name='MGA allocated (under PGA)';
+
+
 select decode(value,0,'ASMM:off','ASMM:on') as ASMM_Status
 from v$parameter
 where name in 'sga_target'

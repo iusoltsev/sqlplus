@@ -93,7 +93,21 @@ with sids as
        from system.fnd_concurrent_sessions join apps.fnd_concurrent_requests b using (request_id,parent_request_id)
        start with request_id in  (&1)
         connect by nocycle parent_request_id = prior request_id and b.RESUBMIT_INTERVAL is null
-        and module not like 'oratop@%')
+        and module not like 'oratop@%'
+union                  -- for action = 'XXYA_TLOG_TAXI_GRP_PKG'...
+select distinct module,
+       0 as ROOT_request_id,
+       0 as request_id,
+       0 as CONCURRENT_PROGRAM_ID,
+       0 as parent_request_id,
+       instance_number as inst_id,
+       session_id as sid,
+       session_serial# as serial#,
+       min(sample_time) over () as min_timestamp,
+       max(sample_time) over () as max_timestamp
+from AWR_CDB_ACTIVE_SESS_HISTORY
+      where snap_id between &v_min_snap_id and &v_max_snap_id and dbid = &v_DBID
+and module = 'REQID='||'&1')
 --select * from sids
 --select count(distinct s.inst_id||' '||s.sid||' '||s.serial#), count(distinct s.request_id) from sids s
 /*

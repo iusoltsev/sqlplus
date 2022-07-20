@@ -1,7 +1,7 @@
 --
 -- ASH script for SQLs and objects grouping from cluster waits concurrency for the same db blocks
 -- May be useful for the Cluster waits problem periods
--- Usage: SQL> @ash_sql_cluster_block_waits_temp 8ubrykptawra1 2 500
+-- Usage: SQL> @ash_sql_cluster_block_waits_hist.sql 8ubrykptawra1 175394 175399 2 100
 -- by Igor Usoltsev
 --
 
@@ -12,12 +12,12 @@ col INST_ID2 for 9999999
 col EVENT1 for a40
 col EVENT2 for a40
 col CLIENT_ID for a30
-col SQL_OPNAME1 for a12
-col SQL_OPNAME2 for a12
+col SQL_OPNAME1 for a20
+col SQL_OPNAME2 for a20
 col object_type for a20
 col object_name for a40
 
-with ash as (select /* MATERIALIZE*/ * from dba_hist_active_sess_history where snap_id between 175394 and 175399
+with ash as (select /* MATERIALIZE*/ * from dba_hist_active_sess_history where snap_id between &2 and &3
 --             where sample_time between nvl(to_date('#1','dd.mm hh24:mi'),sysdate-1e6) and nvl(to_date('#2','dd.mm hh24:mi'),sysdate+1e6)
              )
 select ash1.instance_number          as INST_ID1,
@@ -42,9 +42,9 @@ join ash ash2 on ash1.current_file#  = ash2.current_file#
              and ash1.p1text         = ash2.p1text
              and ash1.instance_number       <> ash2.instance_number                              -- с разных нод
              and ash2.sample_time    > ash1.sample_time                          -- недублированные
---             and (ash1.sql_id in (nvl('&&1',ash1.sql_id)) or ash2.sql_id in (nvl('&&1',ash2.sql_id)))
-and (ash1.client_id like '&&1%' or ash2.client_id like '&&1%')
-             and to_char(ash2.sample_time,'SSSSS') - to_char(ash1.sample_time,'SSSSS') <= nvl('&2', 1) -- почти одновременные
+             and (ash1.sql_id in (nvl('&&1',ash1.sql_id)) or ash2.sql_id in (nvl('&&1',ash2.sql_id)))
+--and (ash1.client_id like '&&1%' or ash2.client_id like '&&1%')
+             and to_char(ash2.sample_time,'SSSSS') - to_char(ash1.sample_time,'SSSSS') <= nvl('&4', 1) -- почти одновременные
 left join dba_objects o on ash1.current_obj# = object_id
 where ash1.wait_class    = 'Cluster'                                             -- кластерные
   and ash1.p1text        = 'file#'                                               -- блок-ориентированные
@@ -61,7 +61,7 @@ group by ash1.instance_number,
          o.object_type,
          o.object_name,
          REGEXP_SUBSTR(ash1.client_id, '.+\#')
-having count(*) > nvl('&3', 500)
+having count(*) > nvl('&5', 500)
 order by count(*) desc
 /
 set feedback on echo off VERIFY ON

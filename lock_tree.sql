@@ -1,6 +1,6 @@
 --
 -- Current Lock Waits chains based on GV$LOCK
--- Usage: SQL> @lock_tree_local
+-- Usage: SQL> @lock_tree
 -- Igor Usoltsev
 --
 
@@ -71,6 +71,8 @@ with
                LEVEL as LVL,
                LPAD(' ', (LEVEL - 1) * 2) || 'INST#' || inst_id || ' SID#' || sid ||' CON#' || con_id as BLOCKING_TREE,
                type, inst_id, sid, con_id, KADDR, block, REQUEST, ID1, ID2
+, CONNECT_BY_ROOT sid as ROOT_sid
+, connect_by_isleaf   as isleaf
           from (select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from BLOCKERS
                 union
                 select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from WAITERS) ll
@@ -82,7 +84,8 @@ with
          start with (inst_id, sid, type, con_id, ID1, ID2) in
                     (select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS where block > 0 and REQUEST = 0))
 select --+ ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
-       LVL, BLOCKING_TREE, b3.TYPE--, KADDR
+       LVL, BLOCKING_TREE, s.serial#, b3.TYPE--, KADDR
+, ROOT_sid, isleaf   
      , s.program
      , s.USERNAME
      , s.CLIENT_IDENTIFIER as CLIENT_ID

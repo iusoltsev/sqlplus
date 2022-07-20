@@ -1,7 +1,7 @@
 --
--- EBS concurrent evg.time trend analysis from DBA_HIST_ASH by Month or Days
--- Usage: SQL> @oebs_conc_trend_hist "522703,556712"               [10]                                 [mm|dd]                     "801, 2484%"
---                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Month or Days ^ARGUMENT_TEXT in LIKE format
+-- EBS concurrent evg.time trend analysis from DBA_HIST_ASH by Month or Days (w/o PARENT)
+-- Usage: SQL> @oebs_conc_trend4long "522703,556712"               [10]                                 [mm|dd]                     "801, 2484%"                  7200
+--                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Month or Days ^ARGUMENT_TEXT in LIKE format ^min request duration in seconds
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
@@ -13,18 +13,20 @@ col REQ_LIST for a200
 with r as (select * from apps.fnd_concurrent_requests where concurrent_program_id in (&1)
            and nvl(actual_completion_date,sysdate) > trunc(sysdate-nvl(to_number('&2'),365),nvl('&3','mm'))
            and nvl(ARGUMENT_TEXT,'0') like decode('&4','0','%','&4')
---and (nvl(actual_completion_date,sysdate) - actual_start_date) * 86400 > &5
-          )
+and (nvl(actual_completion_date,sysdate) - actual_start_date) * 86400 > &5 )
+--select * from r
 , q as (select concurrent_program_id, -- ROOT requests list!
-                   CONNECT_BY_ROOT request_id as ROOT_request_id,
+                   --CONNECT_BY_ROOT
+                    request_id as ROOT_request_id,
                    request_id,
                    actual_start_date,
                    actual_completion_date
 , status_code
+, round((nvl(actual_completion_date,sysdate) - actual_start_date) * 86400) as Duration_s
               from r
-             where connect_by_isleaf = 0 or connect_by_isleaf = 1 and parent_request_id = -1
-            connect by nocycle parent_request_id = prior request_id  and RESUBMIT_INTERVAL is null)
---select * from q ---where ROOT_request_id = 100059475
+                    --where connect_by_isleaf = 0 or connect_by_isleaf = 1 and parent_request_id = -1
+                    --connect by nocycle parent_request_id = prior request_id  and RESUBMIT_INTERVAL is null
+            )--select * from q ---where ROOT_request_id = 100059475
 select trunc(actual_completion_date, nvl('&3','mm')) as month,
        concurrent_program_id,
        (select distinct CONCURRENT_PROGRAM_NAME||'|'||USER_CONCURRENT_PROGRAM_NAME from apps.fnd_concurrent_programs_vl

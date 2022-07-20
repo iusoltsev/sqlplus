@@ -43,7 +43,7 @@ select distinct plan_hash_value, hint
            and plan_hash_value = nvl('&&2', plan_hash_value)
            and trim(OTHER_XML) is not null)
  where hint like '%' || upper('&&3') || '%'
--- order by 1
+ order by 1, 2
 /
 
 /* Hint Usage

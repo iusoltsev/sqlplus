@@ -1,7 +1,7 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
--- Usage: SQL> @oebs_conc_hist19_21 91911537    [SQL]|TOP|REQ|SID|MOD|"PL/"|INST [10]
---                                 ^Request_id  ^FieldSelector    ^topN_sql
+-- Usage: SQL> @oebs_conc_hist19_21 "91911537,3332222111"    [SQL]|TOP|REQ|SID|MOD|"PL/"|INST [10]
+--                                 ^Request_id               ^FieldSelector                   ^topN_sql
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
@@ -19,6 +19,7 @@ col PLSQL for a60
 col CLIENT_ID for a30
 col SQL_TEXT for a200
 col TOP_SQL_TEXT for a200
+col argument_text for a200
 col WAIT_PROFILE for a200
 col PARENT_REQUEST_ID for 99999999999
 col PARENT_ID         for 99999999999
@@ -27,20 +28,26 @@ col SERIAL for 99999999
 col actual_start_date for a20
 col actual_completion_date for a20
 
-DEFINE v_DBID = 0
+DEFINE v_DBID        = 0
 DEFINE v_min_snap_id = 0
 DEFINE v_max_snap_id = 0
+DEFINE v_child_reqs  = 0
 
-col DBID        new_value v_DBID noprint
-col min_snap_id new_value v_min_snap_id noprint
-col max_snap_id new_value v_max_snap_id noprint
+col DBID          new_value v_DBID         noprint
+col min_snap_id   new_value v_min_snap_id  noprint
+col max_snap_id   new_value v_max_snap_id  noprint
+col child_reqs    new_value v_child_reqs   noprint
+col sum_ash_rows  new_value v_sum_ash_rows noprint
 
 select parent_request_id, request_id,
        concurrent_program_id,
        actual_start_date,
-       actual_completion_date
+       actual_completion_date,
+       STATUS_CODE,
+       PHASE_CODE
       ,(select distinct CONCURRENT_PROGRAM_NAME||'|'||USER_CONCURRENT_PROGRAM_NAME from apps.fnd_concurrent_programs_vl
          where concurrent_program_id = q.concurrent_program_id and rownum <= 1) as CONCURRENT_PROGRAM_NAME
+, argument_text
   from apps.fnd_concurrent_requests q
  where request_id in (&1)
 /
@@ -61,20 +68,48 @@ with sids as
        start with request_id in  (&1)
         connect by nocycle parent_request_id = prior request_id and b.RESUBMIT_INTERVAL is null
         and module not like 'oratop@%')
-, minmax_timestamp as (select min(min_timestamp) as min_timestamp, max(max_timestamp) as max_timestamp from sids)
+, minmax_timestamp as (select min(min_timestamp) as mmin_timestamp
+                            , max(max_timestamp) as mmax_timestamp
+                            , count(distinct request_id) as child_reqs
+                            , round( sum(cast(max_timestamp as date)-cast(min_timestamp as date)) * 86400 / 10) as sum_ash_rows
+                       from sids)
 --select * from minmax_timestamp
 select-- monitor
         DBID--, con_id
       , min(snap_id) as min_snap_id
       , max(snap_id) as max_snap_id
+      , child_reqs
+      , sum_ash_rows
+, mmin_timestamp, mmax_timestamp
+from (select DBID, snap_id, begin_interval_time, end_interval_time, child_reqs, sum_ash_rows, mmin_timestamp, mmax_timestamp
         from dba_hist_snapshot, minmax_timestamp
-       where (min_timestamp between begin_interval_time and end_interval_time
-              OR max_timestamp between begin_interval_time and end_interval_time
-              OR max_timestamp > end_interval_time and end_interval_time = (select max(end_interval_time) from dba_hist_snapshot))
-and dbid = sys_context ('userenv','DBID')
-group by DBID--, con_id
+       where (mmin_timestamp between begin_interval_time and end_interval_time
+              OR mmax_timestamp between begin_interval_time and end_interval_time
+              OR mmax_timestamp > end_interval_time and end_interval_time = (select max(end_interval_time) from dba_hist_snapshot)
+              )
+              and dbid = sys_context ('userenv','DBID')
+--added for non-exist snapshot
+union all
+(select DBID, max(snap_id) as snap_id, max(begin_interval_time) as begin_interval_time, max(end_interval_time) as end_interval_time, child_reqs, sum_ash_rows, mmin_timestamp, mmax_timestamp
+  from dba_hist_snapshot, minmax_timestamp
+ where not exists (select 1 from dba_hist_snapshot where mmin_timestamp between begin_interval_time and end_interval_time)
+   and mmin_timestamp > end_interval_time
+   and dbid = sys_context ('userenv','DBID')
+ group by DBID, child_reqs, sum_ash_rows, mmin_timestamp, mmax_timestamp)
+union all
+(select DBID, min(snap_id) as snap_id, min(begin_interval_time) as begin_interval_time, min(end_interval_time) as end_interval_time, child_reqs, sum_ash_rows, mmin_timestamp, mmax_timestamp
+  from dba_hist_snapshot, minmax_timestamp
+ where not exists (select 1 from dba_hist_snapshot where mmax_timestamp between begin_interval_time and end_interval_time)
+   and mmax_timestamp < begin_interval_time
+   and dbid = sys_context ('userenv','DBID')
+ group by DBID, child_reqs, sum_ash_rows, mmin_timestamp, mmax_timestamp)
+--added for non-exist snapshot
+         )
+group by DBID, child_reqs, sum_ash_rows--, con_id
+, mmin_timestamp, mmax_timestamp
 /
-select &v_DBID, &v_min_snap_id, &v_max_snap_id from dual
+/*select &v_DBID as DBID, &v_min_snap_id as min_snap_id, &v_max_snap_id as max_snap_id, &v_child_reqs  as child_conc_reqs from dual*/
+select &v_DBID, &v_min_snap_id, &v_max_snap_id, &v_child_reqs, &v_sum_ash_rows from dual
 /
 with sids as
       (select /*+ materialize */

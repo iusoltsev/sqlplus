@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL"
+-- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -23,7 +23,7 @@ with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, ash.* 
 		)
 select--+ parallel(5) opt_param('_fix_control' '16166364:off')
        LEVEL as LVL,
-       ash.instance_number,
+       ash.instance_number as INST,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
         case when program like 'rman%' then '(RMAN)'
@@ -36,20 +36,33 @@ select--+ parallel(5) opt_param('_fix_control' '16166364:off')
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
           when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
+          when REGEXP_INSTR(program, '\(W...\)')     > 0 then '(W...)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
 --       REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID,
-decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', REGEXP_SUBSTR(client_id, '.+\#')) as CLIENT_ID,
+decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', case when client_id like '%#%' then REGEXP_SUBSTR(client_id, '.+\#') else client_id end) as CLIENT_ID,
 decode(instr(upper('&&4'), 'SERV'), 0, 'Not Req.', s.name) as SERVICE_NAME,
 decode(instr(upper('&&4'), 'MODULE'), 0, 'Not Req.', MODULE) as MODULE,
 decode(instr(upper('&&4'), 'ACTION'), 0, 'Not Req.', ACTION) as ACTION,
 nvl2(xid,' X ','') as XID,
 decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue')) as EVENT,
        wait_class,
+/*
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            when event = 'latch free' then to_char(p1) end
-                                                  as "P1[RAW]",
+            when event = 'latch free' then to_char(p1) 
+            when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
+            when event = 'DFS lock handle' then p1||' '||p2
+       end as "Parameters",
+*/
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+            when event = 'latch free' then to_char(p1)
+            when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
+            when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
+            when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
+            when event = 'enq: JI - contention' then p2text||' '||p2
+            when event = 'DFS lock handle' then p1||' '||p2
+       end as "Param[RAW]",
 ----       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', o.owner||'.'||o.object_name||'.'||o.subobject_name) as DATA_OBJECT,
 decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#)) as "ROWID",
@@ -75,6 +88,7 @@ decode(instr(upper('&&4'), 'CALL'), 0, 'Not Req.', top_level_call_name) as top_l
 --round(sum(1000)/decode(round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)),0,1,round(sum(case when time_waited > 0 then greatest(1, (1000000/time_waited)) else 0 end)))) as est_avg_latency_ms,
        count(distinct ash.instance_number||session_id||session_serial#) as SESS_COUNT,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
+decode(instr(upper('&&4'), 'PL/'), 0, 'Not Req.', p.owner||'.'||p.object_name||'.'||p.procedure_name) as PLSQL_OBJECT,
        blocking_session_status||' i#'||blocking_inst_id as BLOCK_SID,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime,
@@ -116,11 +130,13 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           when REGEXP_INSTR(program, '\(AS..\)')     > 0 then '(AS..)'
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
           when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
+          when REGEXP_INSTR(program, '\(W...\)')     > 0 then '(W...)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end,
 ----          REGEXP_SUBSTR(client_id, '.+\#'),
-decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', REGEXP_SUBSTR(client_id, '.+\#')),
+--decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', REGEXP_SUBSTR(client_id, '.+\#')),
+decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', case when client_id like '%#%' then REGEXP_SUBSTR(client_id, '.+\#') else client_id end),
 decode(instr(upper('&&4'), 'MODULE'), 0, 'Not Req.', MODULE),
 decode(instr(upper('&&4'), 'ACTION'), 0, 'Not Req.', ACTION),
 nvl2(xid,' X ',''),
@@ -130,7 +146,13 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            when event = 'latch free' then to_char(p1) end,
+            when event = 'latch free' then to_char(p1)
+            when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
+            when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
+            when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
+            when event = 'enq: JI - contention' then p2text||' '||p2
+            when event = 'DFS lock handle' then p1||' '||p2
+       end,
 --       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', o.owner||'.'||o.object_name||'.'||o.subobject_name),
 decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#)),
@@ -152,6 +174,7 @@ In_Sql_Execution
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
           ,blocking_session_status||' i#'||blocking_inst_id
+,decode(instr(upper('&&4'), 'PL/'), 0, 'Not Req.', p.owner||'.'||p.object_name||'.'||p.procedure_name)
 ,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', sql_ID)
 ,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', top_level_sql_id)
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_hash_value)

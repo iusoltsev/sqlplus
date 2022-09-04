@@ -31,7 +31,7 @@ y.inst_id = userenv('Instance') and
 a.indx+1 = y.kspftctxpn
 AND   a.indx = b.indx
 AND   a.indx = c.indx
-AND   (a.ksppinm like '%'||'&1'||'%' escape '\'
+AND   (lower(a.ksppinm) like lower('%'||'&1'||'%') escape '\'
        OR lower(Ksppdesc) like lower('%'||'&&1'||'%') escape '\')
 --     OR lower(to_char(kspftctxvl)) like lower('%'||'&&1'||'%') escape '\')
 /

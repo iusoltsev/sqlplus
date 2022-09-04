@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/"
+-- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/ ROWID"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -23,6 +23,7 @@ with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, ash.* 
 		)
 select--+ parallel(5) opt_param('_fix_control' '16166364:off')
        LEVEL as LVL,
+       CONNECT_BY_ISCYCLE as ISCYCLE,
        ash.instance_number as INST,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
@@ -55,7 +56,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
             when event = 'DFS lock handle' then p1||' '||p2
        end as "Parameters",
 */
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
             when event = 'latch free' then to_char(p1)
             when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
@@ -118,6 +119,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
                 and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
 --                and ash.instance_number         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
+          CONNECT_BY_ISCYCLE,
           ash.instance_number,
 --          BLOCKING_INST_ID,
         case when program like 'rman%' then '(RMAN)'
@@ -145,7 +147,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
           wait_class,
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
             when event = 'latch free' then to_char(p1)
             when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)

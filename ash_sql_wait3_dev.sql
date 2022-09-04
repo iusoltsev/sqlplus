@@ -28,6 +28,7 @@ with ash as (select /*+ materialize parallel(8) */ CAST(sample_time AS DATE) as 
 		)
 select--+ parallel(8) opt_param('_fix_control' '16166364:off')
        LEVEL as LVL,
+       CONNECT_BY_ISCYCLE as ISCYCLE,
        ash.inst_id,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
@@ -54,7 +55,7 @@ decode(instr(upper('&&4'), 'ACTION'), 0, 'Not Req.', ACTION) as ACTION,
 nvl2(xid,' X ','') as XID,
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
             when event = 'latch free' then to_char(p1)
             when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
@@ -102,7 +103,7 @@ max(sample_time) as max_stime
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_operation||' '||sql_plan_options) as SQL_PLAN_OPERATION
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9))) as sql_text
 ,decode(instr(upper('&&4'), 'SQL')+instr(upper('&&4'), 'QUERY'), 0, 'Not Req.', trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))) as sql_text
-,LISTAGG(distinct ash.inst_id||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc)
+,LISTAGG(distinct ash.inst_id||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
   from ash
        left join (select distinct sql_id, dbms_lob.substr(sql_fulltext,100) as sql_text from gv$sqlarea
                   union select sql_id, dbms_lob.substr(sql_text,100) as sql_text from dba_hist_sqltext) hs using(sql_id)--on NVL(ash.sql_id,ash.top_level_sql_id) = hs.sql_id--
@@ -120,6 +121,7 @@ nocycle
                 and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
 --                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
+          CONNECT_BY_ISCYCLE,
           ash.inst_id,
 --          BLOCKING_INST_ID,
         case when program like 'rman%' then '(RMAN)'
@@ -143,7 +145,7 @@ decode(instr(upper('&&4'), 'CLI'), 0, 'Not Req.', case when client_id like '%#%'
           wait_class,
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
+       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
             when event = 'latch free' then to_char(p1)
             when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)

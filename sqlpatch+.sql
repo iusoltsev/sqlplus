@@ -72,7 +72,7 @@ select sa.sql_id,
  where dbms_lob.compare(sp.sql_text, sa.sql_fulltext) = 0
    and sa.sql_id = '&&SQL_ID'
 /
-
+@spm_check4sql_id "&&SQL_ID"
 @SQLPATCH_HINTS "&&SQL_PATCH_NAME"
 
 /* 12.2+

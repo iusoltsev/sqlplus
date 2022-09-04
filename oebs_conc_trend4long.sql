@@ -6,13 +6,14 @@
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
 
-col CONCURRENT_PROGRAM_NAME for a200
+col CONCURRENT_PROGRAM_NAME for a100
 col REQ_LIST for a200
 
 
 with r as (select * from apps.fnd_concurrent_requests where concurrent_program_id in (&1)
            and nvl(actual_completion_date,sysdate) > trunc(sysdate-nvl(to_number('&2'),365),nvl('&3','mm'))
-           and nvl(ARGUMENT_TEXT,'0') like decode('&4','0','%','&4')
+--           and nvl(ARGUMENT_TEXT,'0') like decode('&4','0','%','&4')
+           and (ARGUMENT_TEXT is null or &4 = '0' or upper(ARGUMENT_TEXT) like upper('%'||'&4'||'%'))
 and (nvl(actual_completion_date,sysdate) - actual_start_date) * 86400 > &5 )
 --select * from r
 , q as (select concurrent_program_id, -- ROOT requests list!

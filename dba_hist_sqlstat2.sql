@@ -10,10 +10,13 @@ col IOWAITS_PER_EXEC for 999,999,999,999
 col CLWAITS_PER_EXEC_uS for 999,999,999,999
 col APWAITS_PER_EXEC for 999,999,999,999
 col CCWAITS_PER_EXEC for 999,999,999,999
+col min_snap_id for a20
+col max_snap_id for a20
 
 with ash as
 ( select --+ parallel(4) materialize
   instance_number as inst
+, nvl(qc_session_id, session_id) as sid, nvl(qc_session_serial#, session_serial#) as serial#
 , sql_id
 , sql_plan_hash_value
 , sql_exec_id
@@ -29,10 +32,10 @@ with ash as
  where (snap_id between '&2' and nvl('&3', '&2'))
    and sql_id = '&1'
    and sql_exec_id > 0
- group by instance_number, sql_id, sql_plan_hash_value, sql_exec_id
+ group by instance_number, sql_id, sql_plan_hash_value, sql_exec_id, nvl(qc_session_id, session_id), nvl(qc_session_serial#, session_serial#)
  having (cast(max(sample_time) as date)-cast(min(sample_time) as date)) < 1 and (cast(max(sample_time) as date)-cast(min(sample_time) as date)) > 0
  order by 3)
-select inst, sql_id, sql_plan_hash_value, sql_exec_id, ash_rows
+select inst, sid, serial#, sql_id, sql_plan_hash_value, sql_exec_id, ash_rows
 , round(durn*86400) as seconds
 , max_sample_time-min_sample_time as duration
 , min_sample_time

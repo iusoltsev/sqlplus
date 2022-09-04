@@ -108,8 +108,9 @@ union all
 group by DBID, child_reqs, sum_ash_rows--, con_id
 , mmin_timestamp, mmax_timestamp
 /
-/*select &v_DBID as DBID, &v_min_snap_id as min_snap_id, &v_max_snap_id as max_snap_id, &v_child_reqs  as child_conc_reqs from dual*/
-select &v_DBID, &v_min_snap_id, &v_max_snap_id, &v_child_reqs, &v_sum_ash_rows from dual
+select &v_DBID as DBID, &v_min_snap_id as min_snap_id, &v_max_snap_id as max_snap_id, &v_child_reqs  as child_conc_reqs, &v_sum_ash_rows as sum_ash_rows from dual
+/
+select &v_DBID        , &v_min_snap_id               , &v_max_snap_id               , &v_child_reqs                    , &v_sum_ash_rows from dual
 /
 with sids as
       (select /*+ materialize */

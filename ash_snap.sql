@@ -41,14 +41,7 @@ set feedback on echo off VERIFY ON serveroutput off
 
 /*2do
 create database link BALANCE_RO_balancecdbh
-connect to system identified by "ujh,fnsq"
-using
-'(DESCRIPTION_LIST=
-   (FAILOVER=on)
-  (DESCRIPTION=
-      (ENABLE=BROKEN) (LOAD_BALANCE=on) (FAILOVER=on)
-      (ADDRESS=(PROTOCOL=tcp)(HOST=key-db1h.paysys.yandex.net)(PORT=1521))
-      (CONNECT_DATA = ( SERVICE_NAME = balancecdbh) (server=dedicated))))'
+...
 
 create table system.ash_20211116_balancecdbh tablespace users
 as select * from gv$active_session_history@BALANCE_RO_balancecdbh

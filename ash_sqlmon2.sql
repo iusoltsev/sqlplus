@@ -138,10 +138,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name
-||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
-) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
- access_predicates, filter_predicates,
+         object_name,
+--||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
+--) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+-- access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -162,7 +162,7 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
- access_predicates, filter_predicates,
+-- access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -183,10 +183,10 @@ select   sql_id,
          qblock_name,
          object_alias,
          object_owner,
-         object_name
-||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
-) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
- access_predicates, filter_predicates,
+         object_name,
+--||' ('||(select LISTAGG(column_name, ',' --ON OVERFLOW TRUNCATE '***'
+--) WITHIN GROUP (ORDER BY column_position) from dba_ind_columns where index_owner = object_owner and index_name = object_name)||')' as object_name,
+-- access_predicates, filter_predicates,
          cardinality,
          bytes,
          cost,
@@ -213,8 +213,8 @@ select   sql_id,
          ''                  as object_alias,
          owner               as object_owner,
          object_name,
-         ''                  as access_predicates,
-         ''                  as filter_predicates,
+--         ''                  as access_predicates,
+--         ''                  as filter_predicates,
          null                as cardinality,
          null                as cost,
          null                as bytes,
@@ -233,7 +233,7 @@ select 'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not ex
        null as object_alias,
        null as object_owner,
        null as object_name,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -258,7 +258,7 @@ select 'Soft Parse' as LAST_PLSQL, -- the soft parse phase, sql plan exists but 
        null as object_alias,
        null as object_owner,
        null as object_name,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null as cardinality,
        null as bytes,
        null as cost,
@@ -283,7 +283,7 @@ SELECT 'Main Query w/o saved plan'       -- direct SQL which plan not in gv$sql_
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -317,7 +317,7 @@ SELECT case when pt.id =0 then 'Main Query' -- direct SQL plan+stats
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
- pt.access_predicates, pt.filter_predicates,
+-- pt.access_predicates, pt.filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -339,6 +339,7 @@ CONNECT BY PRIOR pt.id = pt.parent_id
        and PRIOR pt.sql_id = pt.sql_id
        and PRIOR pt.plan_hash_value = pt.plan_hash_value
  START WITH pt.id = 0
+--ORDER BY PT.ID
 UNION ALL
 SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQL, -- recursive SQLs plan+stats
        decode(pt.id, 0, pt.sql_id, null) as SQL_ID,
@@ -349,7 +350,7 @@ SELECT decode(pt.id, 0, p.object_name||'.'||p.procedure_name, null) as LAST_PLSQ
        pt.object_alias,
        pt.object_owner,
        pt.object_name,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        cardinality,
        bytes,
        cost,
@@ -405,7 +406,7 @@ select 'OtherRec.Waits' as LAST_PLSQL, -- non-identified SQL (PL/SQL?) exec stat
        null,
        null,
        null,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -430,7 +431,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        null,
        null,
        null,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -455,7 +456,7 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
        null,
        null,
        null,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -474,14 +475,14 @@ select 'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
 UNION ALL
 select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
        sql_id,
-       to_number(null) as sql_plan_hash_value,
+       sql_plan_hash_value,--to_number(null) as sql_plan_hash_value,
        to_number(null) as sql_plan_line_id,
        'ASH rows: ' || sum(WAIT_COUNT) || '; Dist.Execs: ' || max(SQL_EXEC_COUNT) as PLAN_OPERATION,
        null,
        null,
        null,
        null,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -495,6 +496,7 @@ select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
   group by sql_id
+, sql_plan_hash_value
 UNION ALL
 select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        '',
@@ -505,7 +507,7 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        null,
        null,
        null,
- '' as access_predicates, '' as filter_predicates,
+-- '' as access_predicates, '' as filter_predicates,
        null,
        null,
        null,
@@ -518,5 +520,6 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
 , '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
+--order by sum(WAIT_COUNT) desc
 /
 set feedback on VERIFY ON timi on

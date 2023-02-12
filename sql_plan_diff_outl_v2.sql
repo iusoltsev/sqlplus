@@ -70,7 +70,7 @@ and rownum <= 1 -- different DBID!
               --     plh1.phv_&&2 || plh2.phv_&&4 like 'NLJ_BATCHING%' or -- --//--
               --     plh1.phv_&&2 || plh2.phv_&&4 like 'OUTLINE%')        -- --//--
               --and  
-                     plh1.phv_&&2 like '%' || '&&5' || '%'
+                     plh1.phv_&&2 like '%' || upper('&&5') || '%'
  minus
  select plh1.phv_&&2 from plh1 join plh2 on plh1.phv_&&2 = plh2.phv_&&4)
 union all
@@ -85,7 +85,7 @@ union all
               --     plh1.phv_&&2 || plh2.phv_&&4 like 'NLJ_BATCHING%' or -- --//--
               --     plh1.phv_&&2 || plh2.phv_&&4 like 'OUTLINE%')        -- --//--
               --and  
-                     plh2.phv_&&4 like '%' || '&&5' || '%'
+                     plh2.phv_&&4 like '%' || upper('&&5') || '%'
  minus
  select plh2.phv_&&4 from plh1 join plh2 on plh1.phv_&&2 = plh2.phv_&&4)
 /

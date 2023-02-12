@@ -6,9 +6,7 @@
 
 set echo off feedback off heading on timi off pages 1000 lines 1000 VERIFY OFF
 
-col BLOCKING_TREE for a30
-col LVL           for a3
-col prior_ISID    for a10
+col BLOCKING_TREE for a60
 col TYPE          for a4
 col SQL_TEXT      for a200
 col EVENT         for a60 head "Event name"
@@ -49,7 +47,7 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
 alter session set "_with_subquery"=optimizer
 */
 with
- LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where type not in ('MR', 'AE', 'TO'))
+ LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where l.type not in ('MR', 'AE', 'TO'))
 --select * from LOCKS
 ,S        as (select /* MATERIALIZE*/ s.* from gv$session s)
 ,BLOCKERS as
@@ -75,7 +73,9 @@ with
                type, inst_id, sid, con_id, KADDR, block, REQUEST, ID1, ID2
 , CONNECT_BY_ROOT sid as ROOT_sid
 , connect_by_isleaf   as isleaf
-, prior SID||'#'||prior INST_ID           as prior_ISID
+--, inst_id, sid
+, prior INST_ID as blocking_INST_ID
+, prior SID     as blocking_SID
           from (select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from BLOCKERS
                 union
                 select inst_id, sid, type, con_id, ID1, ID2, block, REQUEST, KADDR from WAITERS) ll
@@ -86,13 +86,34 @@ with
                and prior block > block
          start with (inst_id, sid, type, con_id, ID1, ID2) in
                     (select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS where block > 0 and REQUEST = 0))
+,b4 as (select /*+ MATERIALIZE*/
+               LEVEL as LVL,
+               LPAD(' ', (LEVEL - 1) * 2) || 'INST#' || inst_id || ' SID#' || sid ||' CON#' || con_id as BLOCKING_TREE,
+               type,
+               inst_id,
+               sid,
+               con_id,
+               --KADDR,
+               --block,
+               --REQUEST,
+               --ID1,
+               --ID2
+, CONNECT_BY_ROOT sid as ROOT_sid
+, connect_by_isleaf   as isleaf
+, prior INST_ID||'#'||prior SID           as prior_ISID
+          from b3
+        connect by NOCYCLE SID      = prior BLOCKING_SID
+                       and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
+--                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
+
+               and prior block > block
+         start with (inst_id, sid, type, con_id, ID1, ID2) in
+                    (select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS where block > 0 and REQUEST = 0))
 select --+ ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
-       LVL, BLOCKING_TREE, s.serial#
-, ROOT_sid
-, isleaf   
-, prior_ISID
-, b3.TYPE, ID1, ID2, block, REQUEST
+       LVL, BLOCKING_TREE, s.serial#, b3.TYPE
+, ID1, ID2, block, REQUEST
 --, KADDR
+, ROOT_sid, isleaf   
      , s.program
      , s.USERNAME
      , s.CLIENT_IDENTIFIER as CLIENT_ID
@@ -122,11 +143,11 @@ select --+ ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
      , 'Alter system kill session '''||s.SID||','||s.SERIAL#||','||'@'||s.INST_ID||''';' as KILL_SESSION
      , substr(replace(replace(sa1.SQL_TEXT,chr(10),' '),chr(13),' '),1,200) as SQL_TEXT
  from b3
- join s on s.inst_id = b3.inst_id and s.sid = b3.sid
- left join cdb_objects o  on decode(b3.type,'TM',b3.id1,'') = o.object_id and s.con_id =  o.con_id -- here be dragonz
- left join cdb_objects o2 on s.row_wait_obj#                  = o2.object_id and s.con_id =  o2.con_id
- left join gv$sqlarea sa1 on NVL(s.sql_id,s.prev_sql_id) = sa1.sql_id and s.inst_id =  sa1.inst_id and s.con_id =  sa1.con_id
-left join v$datafile d on d.file# = s.ROW_WAIT_FILE#
+ left join s              on                      s.inst_id = b3.inst_id       and s.sid = b3.sid
+ left join cdb_objects o  on decode(b3.type,'TM',b3.id1,'') = o.object_id      and s.con_id =  o.con_id -- here be dragonz
+ left join cdb_objects o2 on                s.row_wait_obj# = o2.object_id     and s.con_id =  o2.con_id
+ left join gv$sqlarea sa1 on    NVL(s.sql_id,s.prev_sql_id) = sa1.sql_id       and s.inst_id =  sa1.inst_id and s.con_id =  sa1.con_id
+ left join v$datafile d   on                        d.file# = s.ROW_WAIT_FILE#
 --order by ID1, ID2, block desc
 order by ROOT_sid, LVL
 /

@@ -1,4 +1,4 @@
-set feedback off heading on timi off pages 100 lines 800 echo off  VERIFY OFF
+set feedback on heading on timi off pages 100 lines 800 echo off  VERIFY OFF
 
 col HANDLER 		for	a16
 col NAMESP		for	a30
@@ -16,8 +16,13 @@ col program 		for 	a60
 col sql_text 		for 	a100
 COL SQL4REMOTE_INST HEADING "SQL for executing on other instances:" FORMAT A150
 col sql_exec_start      for     a15
+col BLOCKER             for     a15
+col FBLOCKER            for     a15
+
+@@sysdate.sql
 
 select --+ ordered
+distinct
        to_char(s.sql_exec_start,'mm/dd hh24:mi:ss') as sql_exec_start,
        b.p1raw     as HANDLER,
        l.kgllktype,
@@ -30,6 +35,10 @@ select --+ ordered
        to_char(s.seconds_in_wait) as secs_in_wait,
        s.event,
        s.seconds_in_wait,
+s.blocking_instance||','||s.blocking_session as Blocker,
+s.blocking_session_status       as BLOCKING_STATUS,
+s.final_blocking_instance||','||s.final_blocking_session as FBlocker,
+s.final_blocking_session_status as F_BLOCKING_STATUS,
        s.client_identifier,
        to_char(s.sid) as sid,
        to_char(s.serial#) as serial,

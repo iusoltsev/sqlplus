@@ -1,7 +1,7 @@
 --
--- EBS concurrent evg.time trend analysis from DBA_HIST_ASH by Month or Days (w/o PARENT)
--- Usage: SQL> @oebs_conc_trend4long "522703,556712"               [10]                                 [mm|dd]                     "801, 2484%"                  7200
---                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Month or Days ^ARGUMENT_TEXT in LIKE format ^min request duration in seconds
+-- EBS concurrent evg.time trend analysis from DBA_HIST_ASH by Days or Hours (w/o PARENT)
+-- Usage: SQL> @oebs_conc_trend4long "522703,556712"               [10]                                 [hh|dd]                     "801, 2484%"                         7200
+--                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Hours or Days ^ARGUMENT_TEXT in LIKE format(0=any) ^min request duration in seconds
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF

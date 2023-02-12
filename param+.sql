@@ -8,8 +8,8 @@ column is_def format a8
 column IS_SESS_MOD format a11
 column IS_SYS_MOD format a10
 column is_adj format a8
-column Sess_Value for a10
-column Inst_Value for a10
+column Sess_Value for a60
+column Inst_Value for a60
 
 SELECT a.ksppinm  name,
        b.ksppstvl Sess_Value,

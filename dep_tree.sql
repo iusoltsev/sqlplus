@@ -14,7 +14,8 @@ select level,
             from dba_objects o
            where d.referenced_owner = o.owner
              and d.referenced_name = o.object_name
-             and d.referenced_type = o.object_type) as "STATUS__LAST_DDL_TIME__EDITION"
+             and d.referenced_type = o.object_type
+             and rownum < 2) as "STATUS__LAST_DDL_TIME__EDITION"
   from dba_dependencies d
 connect by nocycle type = prior decode(referenced_type, 'TABLE', 'MATERIALIZED VIEW', referenced_type)
        and owner        = prior referenced_owner

@@ -48,7 +48,8 @@ from dba_hist_sqlstat st join dba_hist_snapshot sn using(snap_id,instance_number
 --   and snap_id between &&2 and nvl('&&3', &&2)
 --   and executions_delta > 0
 --and (st.elapsed_time_delta > 0 and st.executions_delta is not null)
-order by decode(upper('&2'),'PLAN',plan_hash_value,0), snap_id, instance_number
+order by decode(upper('&2'),'PLAN',plan_hash_value,0),
+ snap_id, instance_number
 /*
 select to_char(sql_exec_start,'dd.mm.yyyy hh24:mi:ss')           as SQL_EXEC_START,
        max(sample_time) - SQL_EXEC_START                         as duration,

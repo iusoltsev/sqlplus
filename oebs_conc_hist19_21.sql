@@ -282,6 +282,8 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
   , max(max_sample_time)-min(min_sample_time)                                               as rough_duration
   , min(min_sample_time)                                                                    as min_sample_time
   , max(max_sample_time)                                                                    as max_sample_time
+--, min(min_sample_time) over()                                                                   as min_sample_time_
+--, max(max_sample_time) over()                                                                   as max_sample_time_
   , to_char(RATIO_TO_REPORT(sum(ash_row)) OVER() * 100, '990.99')                           AS "DBTime%"
   , substr(LISTAGG (distinct EVENT || '('||ash_row4event||')', '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY ash_row4event desc),1,200) as WAIT_PROFILE
   --, rtrim(xmlagg(xmlelement(s, EVENT || '(' || ash_row4event, '); ').extract('//text()') order by ash_row4event desc), '; ') as WAIT_PROFILE

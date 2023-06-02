@@ -19,7 +19,7 @@ col P3TEXT        for a40
 col BLOCK_SESSTAT for a13
 col LAST_CALL_ET  for 999999999999
 col SECS_IN_WAIT  for 999999999999
-col MACHINE       for a36
+col MACHINE       for a60
 col CLNT_PID      for a16
 col OSUSER        for a10
 col SPID          for a10
@@ -49,7 +49,7 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual
 alter session set "_with_subquery"=optimizer
 */
 with
- LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where type not in ('MR', 'AE', 'TO'))
+ LOCKS    as (select /*+ MATERIALIZE*/   * from gv$lock where (REQUEST > 0 or block > 0) and type not in ('MR', 'AE', 'TO'))
 --select * from LOCKS
 ,S        as (select /* MATERIALIZE*/ s.* from gv$session s)
 ,BLOCKERS as
@@ -86,7 +86,7 @@ with
                and prior block > block
          start with (inst_id, sid, type, con_id, ID1, ID2) in
                     (select inst_id, sid, type, con_id, ID1, ID2 from BLOCKERS where block > 0 and REQUEST = 0))
-select --+ ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
+select --+ MONITOR ordered opt_param('_optimizer_generate_transitive_pred','FALSE')
        LVL, BLOCKING_TREE, s.serial#
 , ROOT_sid
 , isleaf   

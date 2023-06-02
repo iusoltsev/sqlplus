@@ -3,6 +3,12 @@
 -- SQL> @ash_snap USERS
 -- The Snap Table ASH_201507071743 was successfully created in tablespace USERS
 --
+/*2do
+create database link RO_db
+...
+create table system.ash_20211116_RO_db tablespace users
+as select * from gv$active_session_history@RO_db
+*/
 set echo off feedback off heading on VERIFY OFF serveroutput on
 select to_char(inst_id) as inst_id , min(sample_time) from gv$active_session_history group by to_char(inst_id)
 /
@@ -41,10 +47,3 @@ begin
 end;
 /
 set feedback on echo off VERIFY ON serveroutput off
-
-/*2do
-create database link BALANCE_RO_balancecdbh
-...
-create table system.ash_20211116_balancecdbh tablespace users
-as select * from gv$active_session_history@BALANCE_RO_balancecdbh
-*/

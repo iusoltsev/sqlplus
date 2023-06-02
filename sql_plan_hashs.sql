@@ -38,7 +38,7 @@ select SRC,
 , dbid
 , con_dbid
   from plan_hashs
- where full_plan_hash_value = nvl('&2', full_plan_hash_value)
-   and plan_hash_value = nvl('&3', plan_hash_value)
+ where (full_plan_hash_value = nvl('&2', full_plan_hash_value) or '&2' = '0')
+   and (plan_hash_value = nvl('&3', plan_hash_value) or '&3' = '0')
 order by 3, 5, 4
 /

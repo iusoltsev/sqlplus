@@ -130,7 +130,7 @@ group by ash.plsql_entry_object_id,
          sql_plan_hash_value,
          sql_plan_line_id)
 , pt as( -- Plan Tables for all excuted SQLs (direct+recursive)
-select /*+ materialize*/   sql_id,
+/*select + materialize   sql_id,
          plan_hash_value,
          id,
          operation,
@@ -173,7 +173,7 @@ select   sql_id,
 --     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
      and (sql_id, plan_hash_value) Not in (select sql_id, plan_hash_value from gv$sql_plan)
      and dbid in (select dbid from v$database)
-  union                                          -- for plans not in dba_hist_sql_plan yet
+  union*/                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
          sql_id,
          plan_hash_value,
@@ -222,7 +222,9 @@ select   sql_id,
          -2                  as parent_id
     from ash0 left join dba_objects on current_obj# = object_id
    where (sql_id, sql_plan_hash_value) in (select sql_id, sql_plan_hash_value from ash union select sql_id, sql_plan_hash_value from ash_recrsv)
-     and (sql_id, sql_plan_hash_value) not in (select sql_id, plan_hash_value from gv$sql_plan union all select sql_id, plan_hash_value from dba_hist_sql_plan)
+     and (sql_id, sql_plan_hash_value) not in (select sql_id, plan_hash_value from gv$sql_plan 
+--union all select sql_id, plan_hash_value from dba_hist_sql_plan
+)
 )
 select /*+ monitor */
        'Hard Parse' as LAST_PLSQL, -- the hard parse phase, sql plan does not exists yet, sql_plan_hash_value = 0

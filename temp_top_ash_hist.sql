@@ -32,7 +32,7 @@ select--+ parallel(5)
 left join dba_hist_sqltext t  on t.sql_id  = ash.sql_id
                 group by instance_number, ash.sql_id, SQL_EXEC_START, sql_exec_id, sql_plan_hash_value, sql_opname, module, action, machine
 , replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' ')
-                having max(temp_space_allocated) / 1024 / 1024 / 1024 > 100 -- GB
+                having max(temp_space_allocated) / 1024 / 1024 / 1024 > 2 -- GB
                 order by 11 desc
 ) where rownum <= nvl('&2',10)
 /

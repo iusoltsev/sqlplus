@@ -1,5 +1,5 @@
 --
--- SQL execution extended analysis with rows_per_exec,... values
+-- SQL execution extended analysis with rows_per_exec,... values from ASH, sqlstats
 -- SQL> @dba_hist_sqlstat2 "6585ka4kkk8fs" 13703          14400
 --                         ^sql_id        ^start_snap_id ^stop_snap_id
 --
@@ -14,12 +14,14 @@ col min_snap_id for a20
 col max_snap_id for a20
 
 with ash as
-( select --+ parallel(4) materialize
+( select --+ parallel(8) materialize
   instance_number as inst
 , nvl(qc_session_id, session_id) as sid, nvl(qc_session_serial#, session_serial#) as serial#
 , sql_id
 , sql_plan_hash_value
+, sql_full_plan_hash_value
 , sql_exec_id
+, service_hash
 , count(*) as ash_rows
 , (cast(max(sample_time) as date)-cast(min(sample_time) as date)) as durn
 , max(sample_time) - min(sample_time) as dur
@@ -28,14 +30,17 @@ with ash as
 , min(snap_id) as min_snap_id
 , max(snap_id) as max_snap_id
 , count(distinct session_id) as px
+, max(temp_space_allocated)  as max_tmp_allocated
+, max(pga_allocated)         as max_pga_allocated
   from dba_hist_active_sess_history
  where (snap_id between '&2' and nvl('&3', '&2'))
    and sql_id = '&1'
    and sql_exec_id > 0
- group by instance_number, sql_id, sql_plan_hash_value, sql_exec_id, nvl(qc_session_id, session_id), nvl(qc_session_serial#, session_serial#)
- having (cast(max(sample_time) as date)-cast(min(sample_time) as date)) < 1 and (cast(max(sample_time) as date)-cast(min(sample_time) as date)) > 0
+ group by instance_number, sql_id, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, nvl(qc_session_id, session_id), nvl(qc_session_serial#, session_serial#), service_hash
+ having --(cast(max(sample_time) as date)-cast(min(sample_time) as date)) < 1 and
+        (cast(max(sample_time) as date)-cast(min(sample_time) as date)) > 0
  order by 3)
-select inst, sid, serial#, sql_id, sql_plan_hash_value, sql_exec_id, ash_rows
+select inst, sid, serial#, sql_id, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, service_hash, ash_rows
 , round(durn*86400) as seconds
 , max_sample_time-min_sample_time as duration
 , min_sample_time
@@ -43,16 +48,21 @@ select inst, sid, serial#, sql_id, sql_plan_hash_value, sql_exec_id, ash_rows
 , min_snap_id
 , max_snap_id
 , px
-,(select min(round(st.rows_processed_delta / decode(st.executions_delta, 0, 1, st.executions_delta)))
+,(select 'min/max rows: '||
+         min(round(st.rows_processed_delta / decode(st.executions_delta, 0, 1, st.executions_delta)))
          ||' / '||
          max(round(st.rows_processed_delta / decode(st.executions_delta, 0, 1, st.executions_delta)))
+         ||'; min/max execs: '||
+         min(round(st.executions_delta)) ||' / '|| max(round(st.executions_delta))
   from dba_hist_sqlstat st
  where st.snap_id between min_snap_id and max_snap_id
    and st.instance_number = inst
    and st.sql_id = '&1'
    and st.plan_hash_value = sql_plan_hash_value
    and st.snap_id between '&2' and nvl('&3', '&2')) as min_max_rows
+, max_tmp_allocated as max_tmp_per_sid
+, max_pga_allocated as max_pga_per_sid
 from ash
-order by sql_plan_hash_value
-       , min_sample_time
+order by --sql_plan_hash_value,
+ min_sample_time
 /

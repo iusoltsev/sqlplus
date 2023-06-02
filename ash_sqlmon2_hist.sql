@@ -46,7 +46,8 @@ with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR 
              and sql_plan_hash_value = nvl('&&2', sql_plan_hash_value)
              and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)))
 , ash as (                               -- ASH part, consisting of direct SQL exec ONLy
-  select count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
+  select--+ materialize
+         count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
          0 as plsql_entry_object_id,     -- important for recrsv queries only
          0 as plsql_entry_subprogram_id, -- --//--
          sh.sql_id,
@@ -80,7 +81,8 @@ group by sql_id,
          sql_plan_hash_value,
          sql_plan_line_id)
 , ash_recrsv as ( -- ASH part, consisting of indirect / recursive SQLs execs ONLy
-  select count(distinct sh.session_id||sh.session_serial#) as SID_COUNT,
+  select--+ materialize
+         count(distinct sh.session_id||sh.session_serial#) as SID_COUNT,
          decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_object_id)     as plsql_entry_object_id,    -- for recrsv queries only
          decode(sh.sql_id, sid_time.sql_id, 0, sh.plsql_entry_subprogram_id) as plsql_entry_subprogram_id,-- --//--
          sh.sql_id,
@@ -120,7 +122,8 @@ group by ash.plsql_entry_object_id,
          sql_plan_hash_value,
          sql_plan_line_id)
 , pt as( -- Plan Tables for all excuted SQLs (direct+recursive)
-select   sql_id,
+select--+ materialize
+         sql_id,
          plan_hash_value,
          id,
          operation,
@@ -129,10 +132,10 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
-         cardinality,
-         bytes,
-         cost,
-         temp_space,
+         null as cardinality,
+         null as bytes,
+         null as cost,
+         null as temp_space,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash)
@@ -148,10 +151,10 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
-         cardinality,
-         bytes,
-         cost,
-         temp_space,
+         null as cardinality,
+         null as bytes,
+         null as cost,
+         null as temp_space,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
@@ -168,10 +171,10 @@ select   sql_id,
          object_alias,
          object_owner,
          object_name,
-         cardinality,
-         bytes,
-         cost,
-         temp_space,
+         null as cardinality,
+         null as bytes,
+         null as cost,
+         null as temp_space,
          nvl(parent_id, -1) as parent_id
     from gv$sql_plan
 -- about v$sql_plan.child_number multi and multi/adaptive PHV
@@ -485,5 +488,6 @@ select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
 , '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
+--order by sum(WAIT_COUNT) desc
 /
 set feedback on VERIFY ON timi on

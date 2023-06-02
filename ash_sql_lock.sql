@@ -1,5 +1,5 @@
 --
--- ASH lock tree for condition
+-- ASH lock tree for condition 
 -- Usage: SQL> @ash_sql_lock "gv$active_session_history where event = 'enq: TX - row lock contention' and sql_id = '8matphjwpgg7k'" 100
 --                                                                                                                                  ^min wait count
 -- http://iusoltsev.wordpress.com

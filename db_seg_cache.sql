@@ -19,7 +19,7 @@ with OBJLIST as
     from dba_objects
    where owner = upper(nvl('&&1', 'user'))
      and object_name in upper(('&&2'))
-     and (subobject_name in ('&&3') or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
+     and (subobject_name in ('&&3') or '&&3' = '0' or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
      and DATA_OBJECT_ID is not null)
 select distinct 'BUFFER CACHE' as AREA,
         nvl(partition_name,'xALL') as partition_name,
@@ -37,7 +37,7 @@ select 'DATABASE',
 from dba_segments
  where owner = upper(nvl('&&1', 'user'))
  and segment_name in upper(('&&2'))
- and (partition_name in ('&&3') or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
+ and (partition_name in ('&&3') or '&&3' = '0' or exists (select column_value from TABLE(sys.OdciVarchar2List('&&3')) where column_value is null))
 --order by partition_name
 union all
 select 'SGA',

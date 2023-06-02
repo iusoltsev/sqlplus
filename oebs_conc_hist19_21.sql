@@ -1,7 +1,7 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
 -- Usage: SQL> @oebs_conc_hist19_21 "91911537,3332222111"    [SQL]|TOP|REQ|SID|MOD|"PL/"|INST|OBJ [10]
---                                 ^Request_id               ^FieldSelector                       ^topN_sql
+--                                 ^Request_id               ^FieldSelector                       ^topN_sql ^order by Duration desc, otherwise - by Activity desc
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
@@ -280,6 +280,7 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
   , sum(ash_row)                                                                            as ash_rows
   , round(sum(ash_row)/decode(count(distinct sql_exec_id),0,1,count(distinct sql_exec_id))) as per_execs
   , max(max_sample_time)-min(min_sample_time)                                               as rough_duration
+  , round(((max(max_sample_time)+0)-(min(min_sample_time)+0))*86400)                        as rough_dur_secs
   , min(min_sample_time)                                                                    as min_sample_time
   , max(max_sample_time)                                                                    as max_sample_time
 --, min(min_sample_time) over()                                                                   as min_sample_time_
@@ -310,7 +311,9 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
   --, EVENT
 ----  , sids_sids
 ----  , sids_reqs
-  order by sum(ash_row)desc--max(sample_time) desc--
+  order by sum(ash_row) desc--decode(upper('&4'), 'D'
+                            -- , 24      --rough_dur_secs
+                            -- , 21) desc--sum(ash_row)
 ----) where rownum <= nvl('&3', 10)
 fetch first nvl('&3', 10) rows only
 /

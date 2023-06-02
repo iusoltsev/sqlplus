@@ -38,16 +38,20 @@ prompt
 prompt
 prompt Session Statistics
 
-select --+ RULE
- v$statname.name, sum(sst.value) - nvl(sum(gst.value),0) as delta
+with s as
+ (select sid from v$px_session
+   where qcsid = &&1
+     and sid <> qcsid
+  union all
+  select &&1 from dual)
+select v$statname.name, sum(sst.value) - nvl(sum(gst.value), 0) as delta
   from v$sesstat sst
-       join v$statname using (statistic#)
-       left join gtt$sesstat gst using (statistic#)
- where sst.sid in (select sid from v$px_session where qcsid = &&1 and sid <> qcsid
-                   union all
-                   select &&1 from dual)
+  join v$statname using (statistic#)
+  join s using (sid)
+  left join gtt$sesstat gst
+ using (statistic#)
  group by v$statname.name, gst.value
-having sum(sst.value) - nvl(sum(gst.value),0) > 0
+having sum (sst.value) - nvl (sum(gst.value), 0) > 0
  order by 2 desc
 /
 
@@ -65,6 +69,7 @@ select EVENT as name,
                    , 0, 1
                    ,(sum(sev.TOTAL_WAITS)    - nvl(sum(gev.TOTAL_WAITS),0)))
          , 1)                                                                         as AVG_WAIT_MS
+, to_char(RATIO_TO_REPORT(sum(sev.TIME_WAITED_micro) - nvl(sum(gev.TIME_WAITED_micro),0)) OVER() * 100, '990.99') AS WAIT_TIME_PCT
   from v$session_event sev left join gtt$session_event gev using (EVENT, wait_class)
  where sev.sid in (select sid from v$px_session where qcsid = &&1 and sid <> qcsid
                    union all

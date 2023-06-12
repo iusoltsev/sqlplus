@@ -1,12 +1,12 @@
 --
 -- EBS concurrent evg.time trend analysis from DBA_HIST_ASH by Month or Days (w/o PARENT)
--- Usage: SQL> @oebs_conc_trend4long "522703,556712"               [10]                                 [mm|dd|hh24]                     "801, 2484%"                  7200
---                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Month|Days|Hours   ^ARGUMENT_TEXT in LIKE format ^min request duration in seconds
+-- Usage: SQL> @oebs_conc_trend4long "522703,556712"               [10]                                 [mm|dd|hh24]                     "801, 2484%"|0                7200|0                           --"argument8 like '%z.z.z.z.z.z.z.z.z.z.z%'"|0
+--                                     ^Concurrent_Program_id List  ^Deep in days (default 365, 1 year)  ^group by by Month|Days|Hours   ^ARGUMENT_TEXT in LIKE format ^min request duration in seconds --^add.conditions for fnd_concurrent_requests
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF
 
-col CONCURRENT_PROGRAM_NAME for a100
+col CONCURRENT_PROGRAM_NAME for a120
 col REQ_LIST                for a200
 col PROGRAM_ID              for a10
 col dt_start                for a20
@@ -15,6 +15,7 @@ with r as (select * from apps.fnd_concurrent_requests where concurrent_program_i
            and nvl(actual_completion_date,sysdate) > trunc(sysdate-nvl(to_number('&2'),365)/decode('&3','hh24',24,1),nvl('&3','mm'))
 --           and nvl(ARGUMENT_TEXT,'0') like decode('&4','0','%','&4')
            and (ARGUMENT_TEXT is null or '&4' = '0' or upper(ARGUMENT_TEXT) like upper('%'||'&4'||'%'))
+--           and (&6) -- not work
 and (nvl(actual_completion_date,sysdate) - actual_start_date) * 86400 > &5 )
 --select * from r
 , q as (select concurrent_program_id, -- ROOT requests list!

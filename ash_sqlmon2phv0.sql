@@ -46,7 +46,8 @@ with
            where sql_id              = '&&1'                                -- direct SQL exec ONLY
 --             and (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
 and sql_plan_hash_value = 0 -- start here
-             and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+----             and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+and sql_exec_id in (&&3)
           )
 , ash as (                               -- ASH part, consisting of direct SQL exec ONLy
   select count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
@@ -268,7 +269,8 @@ select 6,'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
    where sql_id              = '&&1' -- direct SQL exec ONLY
 AND sql_plan_hash_value = 0
 --         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
-     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+----     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+and sql_exec_id in (&&3)
 UNION ALL
 select 7,'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
        sql_id,
@@ -298,7 +300,8 @@ select 7,'SQL Summary by PHV' as LAST_PLSQL, -- SQL_ID Summary-2
    where sql_id               = '&&1' -- direct SQL exec ONLY
 AND sql_plan_hash_value = 0
 --         (sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) or nvl('&&2',1) = 0)
-     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+----     and (NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)) or nvl('&&3',1) = 0)
+and sql_exec_id in (&&3)
   group by sql_id, sql_plan_hash_value
 order by 1,8,5
 /

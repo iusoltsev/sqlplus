@@ -7,6 +7,7 @@ pro SQL_ID=&&1 Shared Pool GV$SQLSTATS
 pro --------------------------------------------------------------
 
 select st.inst_id as "INST",
+    st.con_id,
     st.executions as execs,
     st.sql_id,
     st.plan_hash_value as plan,

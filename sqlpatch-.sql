@@ -1,5 +1,5 @@
 --
--- Create SQL Patch|Profile for given sql_id
+-- Delete|Drop SQL Patch|Profile for given sql_id
 -- Usage: SQL> @sqlpatch- "da0qdhtw4mhqh_NO_ADAPT" da0qdhtw4mhqh
 --
 

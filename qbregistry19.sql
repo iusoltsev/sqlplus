@@ -6,15 +6,12 @@ rem
 rem     Last tested 
 rem             19.10.0.0
 rem
-rem With additions for usability and 19c compatibility by Igor Usoltsev
-rem @qbregistry_query.sql 0urb01mp7w5dq 123456
-rem                       ^sql_id       ^phv
+rem Modified for usability and 19c compatibility by Igor Usoltsev
+rem @qbregistry19 0urb01mp7w5dq 1234567890 SEL$D59007A2
+rem               ^sql_id       ^phv       ^output filter
  
-rem define m_sql_id='0urb01mp7w5dq'
-rem define m_origin = 2
-
-set pages 100 lines 100
-col QBREG for a120
+set pages 1000 lines 200 verify off
+col QBREG for a160
  
 with query_block_origin as (select
  0 as ORIGIN_ID,                                           'NOT NAMED' as NAME, '' as HINT_TOKEN from dual union all select
@@ -99,12 +96,17 @@ with query_block_origin as (select
 79, 'LEFT OUTER JOIN TRANSFORMED TO BOTH INNER AND ANTI',  '' from dual union all select
 80, 'SHARD TEMP TABLE',                                    '' from dual union all select
 81, 'BRANCH OF COMPLEX UNNESTED SET QUERY BLOCK',          '' from dual union all select
-82, 'DIST AGG GROUPING SETS OPTIMIZATION',                 'DAGG_OPTIM_GSETS' from dual),
---select * from query_block_origin
+82, 'DIST AGG GROUPING SETS OPTIMIZATION',                 'DAGG_OPTIM_GSETS' from dual union all select
+--+23.2 v$query_block_origin
+83, 'VIEW SUBQUERY SUBSUMPTION',                           'SUBSUME' from dual union all select
+84, 'VIEW GROUPING',                                       'SUBGROUP' from dual union all select
+85, 'JSON QUERY OVER GENERATION FUNCTION REWRITE',         'JSON_QRYOVERGEN_REWRITE' from dual union all select
+86, 'GROUP-BY PUSHDOWN INTO UNION-ALL BRANCH',             '' from dual union all select
+87, 'GROUP-BY PUSHDOWN INTO UNION-ALL VIEW',               'PUSH_GBY_INTO_UNION_ALL' from dual
+),
 xml as (
         select  other_xml
         from    gV$sql_plan 
---        where   sql_id = '&m_sql_id' 
         where   sql_id = '&1' and plan_hash_value = &2
         and     id = 1
         and     other_xml is not null
@@ -112,7 +114,6 @@ and rownum <= 1
 union all
         select  other_xml
         from    dba_hist_sql_plan
---        where   sql_id = '&m_sql_id' 
         where   sql_id = '&1' and plan_hash_value = &2
         and     id = 1
         and     other_xml is not null
@@ -149,7 +150,6 @@ recqb   (src, origin, dest, final, lvl, inpobjs) as (
         from 
                 allqbs
         where 
---              origin = &m_origin
                 origin in (2,3)
         union all 
         select 
@@ -198,4 +198,5 @@ from (
         from 
                 finalans
         ) g
+--where qbreg like '%'||'&3'||'%'
 /

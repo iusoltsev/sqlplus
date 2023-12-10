@@ -15,7 +15,7 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col SQL_ID for a13
 col SQL_OPNAME for a20
-col PLSQL for a60
+col PLSQL for a70
 col CLIENT_ID for a30
 col SQL_TEXT for a200
 col TOP_SQL_TEXT for a200
@@ -29,6 +29,7 @@ col actual_start_date for a20
 col actual_completion_date for a20
 col MIN_SAMPLE_TIME        for a26
 col MAX_SAMPLE_TIME        for a26
+col "ROOT_id(program_id)"  for a30
 
 DEFINE v_DBID        = 0
 DEFINE v_min_snap_id = 0
@@ -41,7 +42,14 @@ col max_snap_id   new_value v_max_snap_id  noprint
 col child_reqs    new_value v_child_reqs   noprint
 col sum_ash_rows  new_value v_sum_ash_rows noprint
 
-select parent_request_id, request_id,
+select
+(select request_id||'('||concurrent_program_id||')'
+ from apps.fnd_concurrent_requests
+ where CONNECT_BY_ISLEAF = 1
+  start with request_id = q.request_id
+ connect by nocycle prior parent_request_id = request_id and RESUBMIT_INTERVAL is null) as "ROOT_id(program_id)",
+       parent_request_id,
+       request_id,
        concurrent_program_id,
        actual_start_date,
        actual_completion_date,
@@ -182,6 +190,7 @@ and module = 'REQID='||'&1')
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)     as top_level_sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)               as sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)  as sql_plan_hash_value
+      , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_opname)           as sql_opname
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' ')) as TOP_SQL_TEXT
       , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)  as PLSQL
@@ -201,6 +210,7 @@ and module = 'REQID='||'&1')
                                                                              , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)
                                                                              , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)
                                                                              , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)
+                                                                             , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_opname)
                                                                              --, decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
                                                                              --, decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' ')) as TOP_SQL_TEXT
                                                                              --, decode(instr(upper('&2'), 'SQL'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)  as PLSQL
@@ -247,6 +257,7 @@ left join CDB_objects      o  on a.current_obj# = o.object_id and a.con_id = o.c
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', top_level_sql_id)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)
+      , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_opname)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' '))
       , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)
@@ -267,6 +278,7 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
 , root_PROGRAM_ID, parent_PROGRAM_ID, CONCURRENT_PROGRAM_ID as PROGRAM_ID
   , inst, sid, serial
   , top_level_sql_id, a.sql_id, sql_plan_hash_value
+  , sql_opname
   --, sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
   , PLSQL
   , module, action, client_id
@@ -301,6 +313,7 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
 , root_PROGRAM_ID, parent_PROGRAM_ID, CONCURRENT_PROGRAM_ID
   , inst, sid, serial
   , top_level_sql_id, a.sql_id, sql_plan_hash_value
+  , sql_opname
   --, sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
   , PLSQL
   , a.module, action, client_id

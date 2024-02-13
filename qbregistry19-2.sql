@@ -1,4 +1,4 @@
-rem
+rem     based on
 rem     Script:         qbregistry_query.sql
 rem     Author:         Oracle Corp / Jonathan Lewis
 rem     Dated:          Aug 2021
@@ -7,9 +7,9 @@ rem     Last tested
 rem             19.10.0.0
 rem
 rem Modified for usability and 19c compatibility by Igor Usoltsev
-rem @qbregistry19 0urb01mp7w5dq 1234567890 SEL$D59007A2
-rem               ^sql_id       ^phv       ^output filter
- 
+rem @qbregistry19-2 0urb01mp7w5dq 1234567890 1urb01mp7w5dq 1234567891
+rem                 ^sql_id1      ^phv1      ^sql_id2      ^phv2
+
 set pages 1000 lines 200 verify off
 col QBREG for a160
  
@@ -120,7 +120,6 @@ union all
 and rownum <= 1
 and not exists (select 1 from gV$sql_plan where sql_id = '&1' and plan_hash_value = &2)
 )
---select * from xml
 ,
 allqbs as ( 
         select 
@@ -147,7 +146,7 @@ inpqbs as (
 recqb   (src, origin, dest, final, lvl, inpobjs, ord) as ( 
         select 
                 qbname src, origin origin, null dest, final final, 1 lvl, null inpobjs 
-, TO_NUMBER(REGEXP_SUBSTR(qbname, '[^SEL\$]+') DEFAULT 1e9 ON CONVERSION ERROR) ord
+, TO_NUMBER(REGEXP_SUBSTR(qbname, '[^SEL\$]+') DEFAULT 1e6 ON CONVERSION ERROR) ord
         from 
                 allqbs
         where 
@@ -156,7 +155,7 @@ recqb   (src, origin, dest, final, lvl, inpobjs, ord) as (
         select 
                 a.qbname src, a.origin origin, a.prev dest, a.final final, lvl+1, 
                 (select depqbs from inpqbs i where i.qbname = a.qbname) inpobjs 
-, TO_NUMBER(REGEXP_SUBSTR(a.qbname, '[^SEL\$]+') DEFAULT 1e9 ON CONVERSION ERROR) ord
+, TO_NUMBER(REGEXP_SUBSTR(a.qbname, '[^SEL\$]+') DEFAULT 1e6 ON CONVERSION ERROR) ord
         from
                 allqbs a, 
                 recqb r 
@@ -165,7 +164,7 @@ recqb   (src, origin, dest, final, lvl, inpobjs, ord) as (
 search depth first by ord--src
  asc set ordseq, 
 finalans as ( 
-        select  ordseq,
+        select 
                 src,
                 (
                 select 
@@ -177,29 +176,207 @@ finalans as (
                 dest, final, lvl, inpobjs 
         from recqb order by ordseq
 ) 
-select
-        /*+ opt_param('parallel_execution_enabled', 'false') */ 
-        ordseq, g.qbreg 
-from (
-        select  ordseq,
-                rpad(' ', 2*(lvl-1)) || 
-                src || ' (' || origin || 
-                        case when length(dest)>0 
-                                then ' ' || dest 
-                                else '' 
-                        end || 
-                        case when length(inpobjs)>0 
-                                then ' ; ' || inpobjs 
-                                else ' ' 
-                        end ||
-                        ')' || 
-                        case when final='y' 
-                                then ' [final]' 
-                                else '' 
-                        end 
-                qbreg
+,
+xml2 as (
+        select  other_xml
+        from    gV$sql_plan 
+        where   sql_id = '&3' and plan_hash_value = &4
+--        and     id = 1
+        and     other_xml is not null
+and rownum <= 1
+union all
+        select  other_xml
+        from    dba_hist_sql_plan
+        where   sql_id = '&3' and plan_hash_value = &4
+--        and     id = 1
+        and     other_xml is not null
+and rownum <= 1
+and not exists (select 1 from gV$sql_plan where sql_id = '&3' and plan_hash_value = &4)
+)
+,
+allqbs2 as ( 
+        select 
+                extractvalue(d.column_value, '/q/n')  qbname, 
+                extractvalue(d.column_value, '/q/@f') final, 
+                extractvalue(d.column_value, '/q/p')  prev, 
+                extractvalue(d.column_value, '/q/@o') origin 
         from 
-                finalans
-        ) g
---where qbreg like '%'||'&3'||'%'
+                table(xmlsequence(extract(xmltype ((select other_xml from xml2)), '/other_xml/qb_registry/q'))) d 
+), 
+inpqbs2 as ( 
+        select 
+                xml.qbname qbname, 
+                listagg(xml.depqbs, ',') within group (
+                        order by xml.depqbs) depqbs 
+        from 
+                xmltable('/other_xml/qb_registry/q/i/o' passing xmltype((select other_xml from xml2)) 
+                        columns depqbs varchar2(256) path 'v', 
+                        qbname varchar2(256) path './../../n'
+                ) xml 
+        where     xml.depqbs in ( select qbname from allqbs2) 
+        group by xml.qbname
+), 
+recqb2   (src, origin, dest, final, lvl, inpobjs, ord) as ( 
+        select 
+                qbname src, origin origin, null dest, final final, 1 lvl, null inpobjs 
+, TO_NUMBER(REGEXP_SUBSTR(qbname, '[^SEL\$]+') DEFAULT 1e6 ON CONVERSION ERROR) ord
+        from 
+                allqbs2
+        where 
+                origin in (2,3)
+        union all 
+        select 
+                a.qbname src, a.origin origin, a.prev dest, a.final final, lvl+1, 
+                (select depqbs from inpqbs2 i where i.qbname = a.qbname) inpobjs 
+, TO_NUMBER(REGEXP_SUBSTR(a.qbname, '[^SEL\$]+') DEFAULT 1e6 ON CONVERSION ERROR) ord
+        from
+                allqbs2 a, 
+                recqb2 r 
+        where a.prev = r.src
+)
+search depth first by ord--src
+ asc set ordseq, 
+finalans2 as ( 
+        select 
+                src,
+                (
+                select 
+                        name||' ('||HINT_TOKEN||')'
+                from    query_block_origin--v$query_block_origin 
+                where 
+                        origin_id=origin
+                )       origin, 
+                dest, final, lvl, inpobjs 
+        from recqb2 order by ordseq
+) 
+--select '---'||'&2'||' minus '||'&4'||'---' as qbreg from dual union all
+, q as (
+  select
+          g.qbreg 
+  from (
+          select 
+                  rpad(' ', 2*(lvl-1)) || 
+                  src || ' (' || origin || 
+                          case when length(dest)>0 
+                                  then ' ' || dest 
+                                  else '' 
+                          end || 
+                          case when length(inpobjs)>0 
+                                  then ' ; ' || inpobjs 
+                                  else ' ' 
+                          end ||
+                          ')' || 
+                          case when final='y' 
+                                  then ' [final]' 
+                                  else '' 
+                          end 
+                  qbreg
+          from 
+                  finalans
+          ) g)
+, q2 as (
+  select
+          g.qbreg 
+  from (
+          select 
+                  rpad(' ', 2*(lvl-1)) || 
+                  src || ' (' || origin || 
+                          case when length(dest)>0 
+                                  then ' ' || dest 
+                                  else '' 
+                          end || 
+                          case when length(inpobjs)>0 
+                                  then ' ; ' || inpobjs 
+                                  else ' ' 
+                          end ||
+                          ')' || 
+                          case when final='y' 
+                                  then ' [final]' 
+                                  else '' 
+                          end 
+                  qbreg
+          from 
+                  finalans2
+          ) g)
+  select * from q
+  minus
+  select * from q2
+/*union all
+(  select * from q2
+  minus
+  select * from q))
+  minus
+  select
+          g.qbreg 
+  from (
+          select 
+                  rpad(' ', 2*(lvl-1)) || 
+                  src || ' (' || origin || 
+                          case when length(dest)>0 
+                                  then ' ' || dest 
+                                  else '' 
+                          end || 
+                          case when length(inpobjs)>0 
+                                  then ' ; ' || inpobjs 
+                                  else ' ' 
+                          end ||
+                          ')' || 
+                          case when final='y' 
+                                  then ' [final]' 
+                                  else '' 
+                          end 
+                  qbreg
+          from 
+                  finalans2
+          ) g)
+union all
+select '---'||'&4'||' minus '||'&2'||'---' from dual
+union all
+ (select
+          g.qbreg 
+  from (
+          select 
+                  rpad(' ', 2*(lvl-1)) || 
+                  src || ' (' || origin || 
+                          case when length(dest)>0 
+                                  then ' ' || dest 
+                                  else '' 
+                          end || 
+                          case when length(inpobjs)>0 
+                                  then ' ; ' || inpobjs 
+                                  else ' ' 
+                          end ||
+                          ')' || 
+                          case when final='y' 
+                                  then ' [final]' 
+                                  else '' 
+                          end 
+                  qbreg
+          from 
+                  finalans2
+          ) g
+  minus
+  select
+          g.qbreg 
+  from (
+          select 
+                  rpad(' ', 2*(lvl-1)) || 
+                  src || ' (' || origin || 
+                          case when length(dest)>0 
+                                  then ' ' || dest 
+                                  else '' 
+                          end || 
+                          case when length(inpobjs)>0 
+                                  then ' ; ' || inpobjs 
+                                  else ' ' 
+                          end ||
+                          ')' || 
+                          case when final='y' 
+                                  then ' [final]' 
+                                  else '' 
+                          end 
+                  qbreg
+          from 
+                  finalans
+          ) g)*/
 /

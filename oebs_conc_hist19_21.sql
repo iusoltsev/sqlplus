@@ -26,6 +26,7 @@ col PARENT_ID         for 99999999999
 col SID for 999999
 col SERIAL for 99999999
 col actual_start_date for a20
+col REQUESTED_START_DATE for a20
 col actual_completion_date for a20
 col MIN_SAMPLE_TIME        for a26
 col MAX_SAMPLE_TIME        for a26
@@ -51,6 +52,7 @@ select
        parent_request_id,
        request_id,
        concurrent_program_id,
+       REQUESTED_START_DATE,
        actual_start_date,
        actual_completion_date,
        STATUS_CODE,

@@ -13,7 +13,7 @@ col EVENT for a60
 col SQL_TEXT for a200
 col MODULE for a80
 col ACTION for a80
-col CLIENT_ID for a50
+col CLIENT_ID for a60
 col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
@@ -64,6 +64,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
             when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
             when event = 'enq: JI - contention' then p2text||' '||p2
+            when event = 'enq: SQ - contention' then p2text||' '||p2
             when event = 'DFS lock handle' then p1||' '||p2
             when event = 'rdbms ipc reply' then p1text||' '||p1
        end as "Param[RAW]",
@@ -162,6 +163,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
             when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
             when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
             when event = 'enq: JI - contention' then p2text||' '||p2
+            when event = 'enq: SQ - contention' then p2text||' '||p2
             when event = 'DFS lock handle' then p1||' '||p2
             when event = 'rdbms ipc reply' then p1text||' '||p1
        end,

@@ -66,6 +66,7 @@ decode(instr(upper('&&4'), 'WAIT'), 0, 'Not Req.', decode(session_state, 'WAITIN
             when event = 'enq: JI - contention' then p2text||' '||p2
             when event = 'enq: MS - contention' then p2text||' '||p2
             when event = 'enq: TQ - DDL contention' then p2text||' '||p2
+            when event = 'enq: SQ - contention' then p2text||' '||p2
             when event = 'DFS lock handle' then p1||' '||p2
             when event = 'rdbms ipc reply' then p1text||' '||p1
        end as "Param[RAW]",
@@ -163,6 +164,7 @@ decode(instr(upper('&&4'), 'WAIT'), 0, 'Not Req.', decode(session_state, 'WAITIN
             when event = 'enq: JI - contention' then p2text||' '||p2
             when event = 'enq: MS - contention' then p2text||' '||p2
             when event = 'enq: TQ - DDL contention' then p2text||' '||p2
+            when event = 'enq: SQ - contention' then p2text||' '||p2
             when event = 'DFS lock handle' then p1||' '||p2
             when event = 'rdbms ipc reply' then p1text||' '||p1
        end,

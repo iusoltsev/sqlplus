@@ -1,6 +1,6 @@
 --
 -- The TEMP usage SQL_EXEC top from ASH
--- SQL> @temp_top_ash  [10]
+-- SQL> @temp_top_ash gv$active_session_history [10]
 --                          ^top sql_exec count
 --
 col MAX_SAMPLE_TIME for a22
@@ -25,14 +25,14 @@ select * from (
                                sum(pga_allocated)                  as pga_allocated,
                                count(distinct session_serial#) - 1 as px_used,
                                sample_time
-                          from gv$active_session_history
+                          from &1--gv$active_session_history
                          where sql_exec_id > 0
                          group by inst_id, sql_exec_start, sql_id, sql_exec_id, sql_plan_hash_value, module, action, sample_id, sample_time
                           having sum(temp_space_allocated) is not null)
                 group by inst_id, sql_id, SQL_EXEC_START, sql_exec_id, sql_plan_hash_value, module, action
                 having max(temp_space_allocated) / 1024 / 1024 / 1024 > 2 -- GB
-                order by 10 desc
-) where rownum <= nvl('&1',10)
+                order by 11 desc
+) where rownum <= nvl('&2',10)
 /
 select * from (
                 select inst_id,
@@ -43,12 +43,12 @@ select * from (
                   from (select inst_id, sample_time, sample_id,
                                sum(temp_space_allocated)           as temp_space_allocated,
                                sum(pga_allocated)                  as pga_allocated
-                          from gv$active_session_history
+                          from &1--gv$active_session_history
 --                         where snap_id between &1 and &2
                          group by inst_id, sample_id, sample_time
                           having sum(temp_space_allocated) is not null)
                 group by inst_id, sample_time, sample_id
                 having max(temp_space_allocated) / 1024 / 1024 / 1024 > 2 -- GB
                 order by 4 desc
-) where rownum <= nvl('&1',10)
+) where rownum <= nvl('&2',10)
 /

@@ -3,7 +3,7 @@
 -- SQL> @temp_top_ash_hist [30]                   [10]
 --                          ^period (last NN days) ^top sql_exec count
 --
-select--+ parallel(5)
+select--+ parallel(8)
  * from (
                 select instance_number as inst_id,
                        ash.sql_id,
@@ -19,15 +19,17 @@ select--+ parallel(5)
                        round(max(pga_allocated)        / 1024 / 1024 / 1024, 3) as max_pga_gb,
                        max(px_used)                                             as max_px_used
 , replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' ') as SQL_TEXT
+, min(snap_id) as min_snap_id
+, max(snap_id) as max_snap_id
                   from (select instance_number, sql_id, sql_exec_start, sql_exec_id, sql_plan_hash_value, sql_opname, module, action, sample_id, machine,
                                sum(temp_space_allocated)           as temp_space_allocated,
                                sum(pga_allocated)                  as pga_allocated,
                                count(distinct session_serial#) - 1 as px_used,
-                               sample_time
+                               sample_time, snap_id
                           from dba_hist_active_sess_history ash
                          where snap_id > (select/*+ NO_UNNEST*/ min(snap_id) from dba_hist_snapshot where begin_interval_time > sysdate - nvl('&1',30))
                            and sql_exec_id > 0
-                         group by instance_number, sql_exec_start, sql_id, sql_exec_id, sql_plan_hash_value, sql_opname, module, action, sample_id, sample_time, machine
+                         group by instance_number, sql_exec_start, sql_id, sql_exec_id, sql_plan_hash_value, sql_opname, module, action, sample_id, sample_time, machine, snap_id
                           having sum(temp_space_allocated) is not null) ash
 left join dba_hist_sqltext t  on t.sql_id  = ash.sql_id
                 group by instance_number, ash.sql_id, SQL_EXEC_START, sql_exec_id, sql_plan_hash_value, sql_opname, module, action, machine

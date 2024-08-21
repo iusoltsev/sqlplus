@@ -6,7 +6,7 @@ rem
 rem     Last tested 
 rem             19.10.0.0
 rem
-rem Modified for usability and 19c compatibility by Igor Usoltsev
+rem Modified for usability and 19c compatibility
 rem @qbregistry19 0urb01mp7w5dq 1234567890 SEL$D59007A2
 rem               ^sql_id       ^phv       ^output filter
  

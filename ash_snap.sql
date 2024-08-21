@@ -28,6 +28,10 @@ begin
          s.hash_value      as SQL_HASH,
          s.old_hash_value as SQL_OLD_HASH,
          s.sql_text      as sql_text,
+         s.program_id,
+         s.program_line#,
+         s.child_number,
+         s.child_address,
          ash.*
     from gv$active_session_history ash
     left join gv$sql s on ash.sql_id = s.sql_id and ash.sql_child_number = s.child_number and ash.inst_id = s.inst_id';

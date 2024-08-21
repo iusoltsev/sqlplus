@@ -3,7 +3,7 @@
 -- SQL> @temp_top_ash gv$active_session_history [10]
 --                          ^top sql_exec count
 --
-col MAX_SAMPLE_TIME for a22
+col MAX_SAMPLE_TIME for a26
 col duration for a24
 col SQL_EXEC_START for a20
 
@@ -31,7 +31,7 @@ select * from (
                           having sum(temp_space_allocated) is not null)
                 group by inst_id, sql_id, SQL_EXEC_START, sql_exec_id, sql_plan_hash_value, module, action
                 having max(temp_space_allocated) / 1024 / 1024 / 1024 > 2 -- GB
-                order by 11 desc
+                order by 10 desc
 ) where rownum <= nvl('&2',10)
 /
 select * from (

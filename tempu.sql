@@ -15,6 +15,7 @@ SELECT--+ ordered
        a.sql_exec_id,
        a.sql_exec_start,
        b.tablespace,
+       a.service_name,
        b.segtype,
        sum(b.blocks) as BLOCKS,
        count(distinct a.sid||a.serial#) as SIDS,
@@ -29,17 +30,21 @@ SELECT--+ ordered
  GROUP by GROUPING SETS((a.inst_id--, a.sid
  , a.username--, a.serial#
  , a.osuser--, a.program
- , a.sql_id, a.sql_exec_id, a.sql_child_number, a.sql_exec_start, substr(trim(replace(replace(replace(q.sql_text ,chr(10)),chr(13)),chr(9))),1,100), q.plan_hash_value, b.tablespace, b.segtype, sysdate),(sysdate),(a.inst_id))
+ , a.sql_id, a.sql_exec_id, a.sql_child_number, a.sql_exec_start, substr(trim(replace(replace(replace(q.sql_text ,chr(10)),chr(13)),chr(9))),1,100), q.plan_hash_value, b.tablespace, a.service_name, b.segtype, sysdate),(sysdate),(a.inst_id))
 order by BLOCKS desc
-fetch first 10 rows only
+fetch first 25 rows only
 /
 pro -------------------
 pro gv$temp_extent_pool
-select tablespace_name, inst_id, round(sum(bytes_used)/1024/1024/1024) as bytes_used_GB, round(sum(bytes_cached)/1024/1024/1024) as bytes_cached
+select tablespace_name,
+       inst_id,
+       round(sum(bytes_used)/1024/1024/1024) as bytes_used_GB,
+       round(sum(bytes_cached)/1024/1024/1024) as bytes_cached_GB,
+       round(100*(sum(bytes_cached) - sum(bytes_used)) / sum(bytes_cached)) as free_pct
   from (select distinct file_id, tablespace_name, inst_id, bytes_used, bytes_cached from gv$temp_extent_pool)--dubbles???
  group by tablespace_name, inst_id
 order by 1,2
-/
+/*
 pro ------------------
 pro gv$temp_extent_map
 select tablespace_name,
@@ -49,4 +54,5 @@ select tablespace_name,
   from gv$temp_extent_map--(select distinct tablespace_name, inst_id, owner, bytes from gv$temp_extent_map)--dubbles???
  group by inst_id, owner, tablespace_name
  order by 1,2,3
+*/
 /

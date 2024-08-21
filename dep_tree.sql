@@ -1,11 +1,13 @@
 --
 -- Full dependency tree for db object
--- Usage: SQL> @dep_tree SCOTT EMP
+-- Usage: SQL> @dep_tree SCOTT EMP "TYPE BODY" "DEPT"
 --
 
 set echo off feedback off heading on VERIFY OFF serveroutput on
 
+select * from (
 select level,
+       CONNECT_BY_ISCYCLE CYCLE,
        lpad('  ', 2 * (level - 1)) || type || ' ' || owner || '.' || name   as DEP_TREE,
        lpad('>', level, '>')                                                as DEPENDENCY,
        referenced_type,
@@ -20,6 +22,7 @@ select level,
 connect by nocycle type = prior decode(referenced_type, 'TABLE', 'MATERIALIZED VIEW', referenced_type)
        and owner        = prior referenced_owner
        and name         = prior referenced_name
- start with (owner, name) in ((upper('&1'), upper('&2')))
+ start with (owner, name) in ((upper('&1'), upper('&2'))) and type like '%'||upper('&3')||'%'
+) where REFERENCED_OBJ like '%'||upper('&4')||'%'
 /
 set feedback on echo off VERIFY ON serveroutput off

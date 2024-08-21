@@ -26,11 +26,12 @@ col MACHINE       for a60
 col CLNT_PID      for a16
 col OSUSER        for a10
 col SPID          for a10
-col REQ_OBJECT    for a61
+col REQ_OBJECT    for a65
 col KILL_SESSION  for a50
 col USERNAME      for a30
 col CLIENT_ID     for a80
 col lock_name     for a64
+col service_name  for a30
 
 @@sysdate
 
@@ -98,6 +99,7 @@ select /*+ MONITOR
 --, isleaf   
 --, prior_ISID
 , b3.prior_INST_ID||','||b3.prior_SID as prior_isid
+, s.service_name
 , b3.TYPE
 , t.name as lock_name
 , lmode, ID1, ID2, KADDR

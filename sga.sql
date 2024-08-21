@@ -20,8 +20,8 @@ col TYPE      for a40
 --col FORCE_MATCHING_SIGNATURE for a30
 @@sysdate
 
-select round(value/1024/1024) as "    maximum PGA allocated" from v$pgastat where name='maximum PGA allocated';
-select round(value/1024/1024) as "MGA allocated (under PGA)" from v$pgastat where name='MGA allocated (under PGA)';
+select inst_id, round(value/1024/1024) as "    maximum PGA allocated MB" from gv$pgastat where name='maximum PGA allocated';
+select inst_id, round(value/1024/1024) as "MGA allocated (under PGA) MB" from gv$pgastat where name='MGA allocated (under PGA)';
 
 
 select decode(value,0,'ASMM:off','ASMM:on') as ASMM_Status
@@ -51,17 +51,16 @@ PROMPT
 PROMPT
 PROMPT Shared Pool Components - TOP10
 COLUMN NAME HEADING 'Shared Pool Components'
-select * from (
-select name, round(bytes/1024/1024) as MB
+select pool, name, round(bytes/1024/1024) as MB
 from v$sgastat
-where pool = 'shared pool'
+--where pool = 'shared pool'
 order by BYTES desc
-) where rownum <= 30
+fetch first 30 rows only
 /
 
-PROMPT
+PROMPT ""
 PROMPT Shared Pool Cache Top 10 w/o binds
-PROMPT
+PROMPT ""
 select * from (
 select inst_id,
        substr(sql_text, 1, 100) as stext,

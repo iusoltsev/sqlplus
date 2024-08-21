@@ -54,6 +54,7 @@ s.final_blocking_session_status as F_BLOCKING_STATUS,
        left join x$kglob w   on l.kgllkhdl = w.kglhdadr
        left join v$sqlarea a on s.sql_address    = a.address
                             and s.sql_hash_value = a.hash_value
+--where (s.final_blocking_session is not null or s.blocking_session is not null) --and upper('&1') != 'B'
 order by
 -- to_char(s.sql_exec_start,'mm/dd hh24:mi:ss'), l.kgllkhdl, s.seconds_in_wait desc, l.kgllktype
 KGLNAOWN, KGLNAOBJ, MODE_HELD,  MODE_REQ

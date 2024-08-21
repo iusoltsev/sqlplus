@@ -26,6 +26,7 @@ col ROLL for a4
 col REOPT for a5
 col FIRST_LOAD_TIME for a20
 col LAST_LOAD_TIME for a20
+col PARSING_SCHEMA_NAME for a30
 col PARSE_USER for a30
 col SPD_Valid for a9
 col SPD_Used  for a9
@@ -89,6 +90,7 @@ select s.inst_id    as INST,
        OUTLINE_CATEGORY,
        SQL_PROFILE,
        IS_OBSOLETE
+, module, action, PROGRAM_ID, PROGRAM_LINE#, s.con_id
   from gv$sql s
 LEFT  join (select inst_id, child_address, sql_id, dbms_lob.substr(reason,3990) as REASON from gv$sql_shared_cursor) sc0
        on s.inst_id = sc0.inst_id and s.sql_id = sc0.sql_id and s.child_address = sc0.child_address
@@ -148,7 +150,8 @@ case when sysdate - cast(max(sample_time) as date) <= 1/86400 then '*' else ' ' 
                       max(sample_time) - min(sample_time) as "DURATIONs",
                       min(sample_time)                    as min_sample_time,
                       max(sample_time)                    as max_sample_time,
-                      max(temp_space_allocated)           as temp_space_allocated
+                      max(temp_space_allocated)           as max_temp_allocated,
+                      max(pga_allocated)                  as max_pga_allocated
                  from (select inst_id,
 nvl(qc_session_id, session_id) as sid,
 nvl(qc_session_serial#, session_serial#) as serial#,
@@ -160,7 +163,8 @@ nvl(qc_session_serial#, session_serial#) as serial#,
                               sql_child_number,
                               sql_exec_start,
                               count(distinct inst_id||','||session_id||','||session_serial#) as PX,
-                              sum(temp_space_allocated)           as temp_space_allocated
+                              sum(temp_space_allocated)                                      as temp_space_allocated,
+                              sum(pga_allocated)                                             as pga_allocated
                , REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID
                          from gv$active_session_history
                         where sql_id = '&&1'

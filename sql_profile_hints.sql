@@ -13,7 +13,7 @@ select substr(extractvalue(value(d), '/hint'), 1, 4000) as hint
                   where obj_type = 1 -- type "SQL Profile"
                     and o.name = '&1'
                     and comp_data is not null)) d)
- where hint like upper('%&2%')
+ where upper(hint) like upper('%&2%')
 /
 /*
 select * from

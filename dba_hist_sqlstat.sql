@@ -22,6 +22,7 @@ select
     st.plan_hash_value as plan,
     st.SQL_PROFILE,
     st.optimizer_cost as cost,
+module, action,
     round(st.parse_calls_delta/decode(st.executions_delta,0,1,st.executions_delta))                   as PARSE_PER_EXEC,
     round(st.elapsed_time_delta/decode(st.executions_delta,0,1,st.executions_delta))                    as ELA_PER_EXEC,
     round(st.cpu_time_delta/decode(st.executions_delta,0,1,st.executions_delta))                        as CPU_PER_EXEC,

@@ -17,6 +17,7 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 col CHAR_DATE new_value SYS_DATE
+col EVENTS for 999999999
 --col XID_LIST for a160
 
 SET TERMOUT OFF
@@ -34,6 +35,7 @@ select--+ parallel(8) opt_param('_fix_control' '16166364:off')
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
         case when program like 'rman%' then '(RMAN)'
+             when program like '%farsync%' then '(FARSYNC)'
           when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
           when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'
@@ -89,6 +91,7 @@ decode(instr(upper('&&4'), 'CALL'), 0, 'Not Req.', top_level_call_name) as top_l
 --       p2text, p2,
 --       p3,
        count(1) as WAITS_COUNT,
+--to_char(RATIO_TO_REPORT(count(1)) OVER() * 100, '990.99') AS "DBTime%",
        count(distinct ash.inst_id||'*'||session_id||'*'||session_serial#||'*'||ash.sample_id) as EVENTS,
        count(distinct sql_exec_id) as EXECS_COUNT,
        round(avg(time_waited) / 1000) as AVG_WAIT_TIME_MS,
@@ -110,7 +113,10 @@ max(sample_time) as max_stime
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_operation||' '||sql_plan_options) as SQL_PLAN_OPERATION
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9))) as sql_text
 ,decode(instr(upper('&&4'), 'SQL')+instr(upper('&&4'), 'QUERY'), 0, 'Not Req.', trim(replace(replace(replace(hs.sql_text ,chr(10)),chr(13)),chr(9)))) as sql_text
-,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
+,LISTAGG(distinct ash.inst_id||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
+,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as QC_SID_LIST
+,LISTAGG(distinct program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as PROG_LIST
+-----,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
 ,LISTAGG(distinct ash.blocking_inst_id||'#'||blocking_session||'#'||blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as BLOKER_LIST
 ,LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as XID_LIST
   from ash
@@ -134,6 +140,7 @@ nocycle
           ash.inst_id,
 --          BLOCKING_INST_ID,
         case when program like 'rman%' then '(RMAN)'
+             when program like '%farsync%' then '(FARSYNC)'
           when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
           when REGEXP_INSTR(program, '\(ARC.\)')     > 0 then '(ARC.)'
           when REGEXP_INSTR(program, '\(O...\)')     > 0 then '(O...)'

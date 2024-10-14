@@ -117,6 +117,8 @@ select /*+ MONITOR
      , s.osuser
 --   , p.spid
      , s.machine
+     , s.module
+     , s.action
      , s.process as CLNT_PID
      , s.port    as CLNT_PORT
 , (select o.object_type || ' ' || o.owner ||'.'|| o.object_name || ' (' || object_id || ')' from cdb_objects o where decode(b3.type,'TM',b3.id1, s.row_wait_obj#) = o.object_id and s.con_id =  o.con_id) AS req_object

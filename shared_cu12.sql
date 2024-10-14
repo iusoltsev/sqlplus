@@ -7,6 +7,7 @@
 
 set feedback on 1 heading on timi off pages 200 lines 500 echo off  VERIFY OFF
 
+col PARSING_SCHEMA_NAME for a20
 col INST for 9999
 col EXECS for 999999999999
 col CHILD for 99999
@@ -26,7 +27,6 @@ col ROLL for a4
 col REOPT for a5
 col FIRST_LOAD_TIME for a20
 col LAST_LOAD_TIME for a20
-col PARSING_SCHEMA_NAME for a30
 col PARSE_USER for a30
 col SPD_Valid for a9
 col SPD_Used  for a9

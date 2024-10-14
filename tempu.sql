@@ -40,7 +40,7 @@ select tablespace_name,
        inst_id,
        round(sum(bytes_used)/1024/1024/1024) as bytes_used_GB,
        round(sum(bytes_cached)/1024/1024/1024) as bytes_cached_GB,
-       round(100*(sum(bytes_cached) - sum(bytes_used)) / sum(bytes_cached)) as free_pct
+       round(100*(sum(bytes_cached) - sum(bytes_used)) / decode(sum(bytes_cached),0,1,sum(bytes_cached))) as free_pct
   from (select distinct file_id, tablespace_name, inst_id, bytes_used, bytes_cached from gv$temp_extent_pool)--dubbles???
  group by tablespace_name, inst_id
 order by 1,2

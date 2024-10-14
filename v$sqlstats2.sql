@@ -16,10 +16,6 @@ col SHAREABLE for a10
 col USE_FEEDBACK_STATS for a18
 col OPTIMIZER_STATS for a16
 col BIND_EQ_FAILURE for a16
-col reason#1 for a40
-col reason#2 for a40
-col reason#3 for a40
-col reason#4 for a40
 col fix_control#1 for a40
 col fix_control#2 for a40
 col SQL_PLAN_BASELINE for a30
@@ -37,7 +33,12 @@ col CURSOR_STATUS for a19
 col DS_LEVEL for a8
 col DOP for a3
 col DOP_REASON for a30
-col PARSING_SCHEMA_NAME a30
+col PARSING_SCHEMA_NAME a20
+
+col reason#1 for a40
+col reason#2 for a40
+col reason#3 for a40
+col reason#4 for a40
 
 pro
 pro --------------------------------------------------------------

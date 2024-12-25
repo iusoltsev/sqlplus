@@ -22,7 +22,18 @@ col ADAPT         for a5
 col category      for a30
 col category_aux  for a30
 
-with spm as (SELECT /*+ dynamic_sampling(3) */
+with
+ signs as 
+(select distinct DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text) as E_signature
+               , DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text,force_match => 1) as F_signature
+  from dba_hist_sqltext
+ where sql_id = '&1'
+union
+select distinct DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_fulltext) as E_signature
+              , DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_fulltext,force_match => 1) as F_signature
+  from gv$sqlarea
+ where sql_id = '&1')
+, spm as (SELECT /*+ dynamic_sampling(3) */
                 DECODE(so.obj_type, 1, 'SQL Profile',
                                     2, 'SQL Plan Baseline',
                                     3, 'SQL Patch') as SPM_TYPE,
@@ -69,14 +80,17 @@ with spm as (SELECT /*+ dynamic_sampling(3) */
                 sys.sqlobj$auxdata ad,
                 sys.sql$text       st,
                 sys.sql$           sq
+               ,signs
             WHERE
                 so.signature = st.signature AND
                 ad.signature = st.signature AND
                 so.signature = ad.signature AND
                 so.signature = sq.signature AND
                 so.plan_id = ad.plan_id AND
-                so.obj_type = ad.obj_type)
-select 
+                so.obj_type = ad.obj_type
+            AND (so.signature = signs.E_signature or so.signature = signs.F_signature))
+--select * from spm
+select sa.sql_id,
        SPM_TYPE,
        sql_handle,
        patch_name,
@@ -91,44 +105,43 @@ select
        fixed,
        reproduced,
        autopurge,
-force,
+       force,
 to_char(signature,'99999999999999999999') as spm_signature,
 to_char(exact_matching_signature,'99999999999999999999') as sql_exact_signature,
 to_char(force_matching_signature,'99999999999999999999') as sql_force_signature
-, to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
 , category, category_aux
-  from spm bl left join gv$sqlarea sa
+  from spm left join gv$sqlarea sa
 -- where dbms_lob.compare(bl.sql_text, sa.sql_fulltext) = 0
-on DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext)
-where sa.sql_id = '&&1' or to_char(bl.signature) = '&&1' or bl.sql_handle = '&&1' or bl.patch_name like '&&1'||'%'
+on (spm.signature = sa.exact_matching_signature or spm.signature = sa.force_matching_signature)
+----on (spm.signature = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_fulltext) or spm.signature = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text => sa.sql_fulltext,force_match => 1))
+--where sa.sql_id = '&&1' or to_char(bl.signature) = '&&1' or bl.sql_handle = '&&1' or bl.patch_name like '&&1'||'%'
 --   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
-/
-/*
+where sa.sql_id is not null
 union
-select SPM_TYPE,
+select h.sql_id,
+       SPM_TYPE,
        sql_handle,
        patch_name,
        origin,
        version,
-       to_char(created, 'dd.mm.yyyy hh24:mi:ss'),
-       to_char(last_modified, 'dd.mm.yyyy hh24:mi:ss'),
-       to_char(last_executed, 'dd.mm.yyyy hh24:mi:ss'),
-       to_char(last_verified, 'dd.mm.yyyy hh24:mi:ss'),
+       to_char(created, 'dd.mm.yyyy hh24:mi:ss') as created,
+       to_char(last_modified, 'dd.mm.yyyy hh24:mi:ss') as last_modified,
+       to_char(last_executed, 'dd.mm.yyyy hh24:mi:ss') as last_executed,
+       to_char(last_verified, 'dd.mm.yyyy hh24:mi:ss') as last_verified,
        enabled,
        accepted,
        fixed,
        reproduced,
        autopurge,
-force,
-to_char(signature,'99999999999999999999'),
-to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 0),'99999999999999999999'),
-to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text, force_match => 1),'99999999999999999999')
-, to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text),'99999999999999999999') as DBMS_SQLTUNE_signature
+       force,
+to_char(signature,'99999999999999999999') as spm_signature,
+to_char(h.exact_signature,'99999999999999999999'),--to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(h.sql_text),'99999999999999999999') as sql_exact_signature,
+to_char(h.force_signature,'99999999999999999999')--to_char(DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(h.sql_text),'99999999999999999999') as sql_force_signature
 , category, category_aux
-  from spm bl left join  dba_hist_sqltext sa
- on --dbms_lob.compare(bl.sql_text, sa.sql_text) = 0 -- wrong!
-       DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(bl.sql_text) = DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sa.sql_text)
-where sa.sql_id = '&&1' or to_char(bl.signature) = '&&1' or bl.sql_handle = '&&1' or bl.patch_name = '&&1'
---   and decode(SPM_TYPE, 'SQL Plan Baseline', 'YES', accepted) = accepted
-*/
+  from spm left join (select sql_id
+                           , DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text) as exact_signature
+                           , DBMS_SQLTUNE.SQLTEXT_TO_SIGNATURE(sql_text,force_match => 1) as force_signature
+                      from dba_hist_sqltext) h
+on (spm.signature = h.exact_signature or spm.signature = h.force_signature)
+/
 set feedback on echo off VERIFY ON serveroutput off

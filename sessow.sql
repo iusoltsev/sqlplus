@@ -22,41 +22,6 @@ set pagesize 1000 feedback off VERIFY OFF timi off
 
 prompt
 prompt
-prompt Session Time Model
-
-select stm.stat_name, sum(stm.value) - nvl(sum(gtm.value),0) as delta
-  from v$sess_time_model stm left join gtt$sess_time_model gtm using (stat_id)
- where stm.sid in (select sid from v$px_session where qcsid = &&1 and sid <> qcsid
-                   union all
-                   select &&1 from dual)
- group by stm.stat_name
-having sum(stm.value) - nvl(sum(gtm.value),0) > 0
- order by 2 desc
-/
-
-prompt
-prompt
-prompt Session Statistics
-
-with s as
- (select sid from v$px_session
-   where qcsid = &&1
-     and sid <> qcsid
-  union all
-  select &&1 from dual)
-select v$statname.name, sum(sst.value) - nvl(sum(gst.value), 0) as delta
-  from v$sesstat sst
-  join v$statname using (statistic#)
-  join s using (sid)
-  left join gtt$sesstat gst
- using (statistic#)
- group by v$statname.name, gst.value
-having sum (sst.value) - nvl (sum(gst.value), 0) > 0
- order by 2 desc
-/
-
-prompt
-prompt
 prompt Session Wait Events
 
 select EVENT as name,

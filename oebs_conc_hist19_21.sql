@@ -236,6 +236,8 @@ and module = 'REQID='||'&1')
 , a.instance_number, a.session_id, a.session_serial#, s.request_id as req
 ----      , count(distinct inst_id||' '||sid||' '||serial#) as sids_sids
 ----      , count(distinct s.request_id)                          as sids_reqs
+------, sum(pga_allocated) over (partition by instance_number, sample_id)        as max_pga_allocated
+------, sum(temp_space_allocated) over (partition by instance_number, sample_id) as max_temp_allocated
         from AWR_CDB_ACTIVE_SESS_HISTORY a
         join sids s on ((a.instance_number, a.session_id, a.session_serial#) in ((s.inst_id, s.sid, s.serial#)) or (qc_instance_id, qc_session_id, qc_session_serial#) in ((s.inst_id, s.sid, s.serial#)))
          and a.SAMPLE_TIME between min_timestamp and max_timestamp

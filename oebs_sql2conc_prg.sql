@@ -25,6 +25,7 @@ select--+ parallel(8)
      , case when upper('&5') like '%CMAN%' then cm_name else '' end as cm_name
      , sum(ash_rows)
 , listagg(distinct request_id||status_code, ',' ON OVERFLOW TRUNCATE WITH COUNT) within group (order by ACTUAL_COMPLETION_DATE-ACTUAL_START_DATE desc) as request_list
+, listagg(distinct instance_number, ',') within group (order by instance_number) as instances
   from q
   left join (select distinct inst_id,
                              sid,

@@ -1,5 +1,6 @@
 --select * from monitor.monitor_query 
 col SQL_TEXT for a200
+col events for a200
 --set echo off
 select a.inst_id as i,
        session_id as sid,

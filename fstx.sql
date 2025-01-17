@@ -10,7 +10,7 @@ select inst_id,
               0,
               'unknown',
               to_char(sysdate + (((undoblockstotal - undoblocksdone) /
-              (undoblocksdone / cputime)) / 86400),'dd.mm.yyyy hh24:mi:ss')) "Estimated time to complete"
+              (decode(undoblocksdone,0,1,undoblocksdone) / cputime)) / 86400),'dd.mm.yyyy hh24:mi:ss')) "Estimated time to complete"
   from gv$fast_start_transactions
  where state <> 'RECOVERED'
 /

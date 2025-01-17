@@ -1,7 +1,7 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
--- Usage: SQL> @oebs_conc_hist19_21 "91911537,3332222111"    [SQL]|TOP|REQ|SID|MOD|"PL/"|INST|OBJ [10]
---                                 ^Request_id               ^FieldSelector                       ^topN_sql ^order by Duration desc, otherwise - by Activity desc
+-- Usage: SQL> @oebs_conc_hist19_21_stat "91911537,3332222111"
+--                                       ^Request_id
 --
 
 set echo off feedback off heading on timi off pages 1000 lines 2000 VERIFY OFF

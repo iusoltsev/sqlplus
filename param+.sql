@@ -3,7 +3,7 @@ set linesize 500
 set pagesize 200
 column name format a60
 column value format a44
-column dsc format a100
+column dsc format a200
 column is_def format a8
 column IS_SESS_MOD format a11
 column IS_SYS_MOD format a10

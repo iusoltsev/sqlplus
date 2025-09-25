@@ -25,6 +25,7 @@ select
 module, action,
     round(st.parse_calls_delta/decode(st.executions_delta,0,1,st.executions_delta))                   as PARSE_PER_EXEC,
     round(st.elapsed_time_delta/decode(st.executions_delta,0,1,st.executions_delta))                    as ELA_PER_EXEC,
+    round(st.elapsed_time_delta/decode(st.rows_processed_delta,0,1,rows_processed_delta))                    as ELA_PER_ROW,
     round(st.cpu_time_delta/decode(st.executions_delta,0,1,st.executions_delta))                        as CPU_PER_EXEC,
     round(st.buffer_gets_delta/decode(st.executions_delta,0,1,st.executions_delta))                     as GETS_PER_EXEC,
     round(st.disk_reads_delta/decode(st.executions_delta,0,1,st.executions_delta))                      as disk_reads_per_exec,
@@ -51,7 +52,7 @@ from dba_hist_sqlstat st join dba_hist_snapshot sn using(snap_id,instance_number
 --and (st.elapsed_time_delta > 0 and st.executions_delta is not null)
 order by --decode(upper('&2'),'PLAN',plan_hash_value,0),
 -- snap_id,
- instance_number, snap_id
+ snap_id, instance_number, sql_id
 /*
 select to_char(sql_exec_start,'dd.mm.yyyy hh24:mi:ss')           as SQL_EXEC_START,
        max(sample_time) - SQL_EXEC_START                         as duration,

@@ -8,7 +8,7 @@ set feedback off heading on timi off pages 500 lines 500 echo off  VERIFY OFF
 
 col PLAN_OPERATION for a130
 col WAIT_PROFILE for a200
-col LAST_PLSQL for a25
+col LAST_PLSQL for a45
 col ID for 9999
 col OBJECT_OWNER for a12
 col OBJECT_NAME for a30
@@ -29,6 +29,8 @@ with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR 
    where sql_id = '&&1'
      and NVL(sql_plan_hash_value, 0) = nvl('&&2', NVL(sql_plan_hash_value, 0))
      and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+--and NVL(sql_exec_id, 0) in (nvl('&3', NVL(sql_exec_id, 0)))
+--and ('&&3' is not null and sql_exec_id in (nvl(&&3,0)) or '&&3' is null)
    group by nvl(qc_session_id, session_id), session_id, session_serial#, sql_id, sql_plan_hash_value, sql_exec_id)
 , ash1 as (select sample_time,
                  session_id,
@@ -44,7 +46,10 @@ with ash0 as (select * from dba_hist_active_sess_history where '&&4' is null OR 
             from ash0
            where sql_id              = '&&1'                                -- direct SQL exec ONLY
              and sql_plan_hash_value = nvl('&&2', sql_plan_hash_value)
-             and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0)))
+             and NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+--and NVL(sql_exec_id, 0) in (nvl('&3', NVL(sql_exec_id, 0)))
+--and ('&&3' is not null and sql_exec_id in (nvl(&&3,0)) or '&&3' is null)
+)
 , ash as (                               -- ASH part, consisting of direct SQL exec ONLy
   select--+ materialize
          count(distinct sh.session_id||','||sh.session_serial#) as SID_COUNT,
@@ -158,7 +163,7 @@ select   sql_id,
          nvl(parent_id, -1) as parent_id
     from dba_hist_sql_plan
    where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv)
-     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
+--     and not exists (select 1 from gv$sql_plan where (sql_id, plan_hash_value) in (select sql_id, sql_plan_hash_value from ash_recrsv))
      and dbid in (select dbid from v$database)
   union                                          -- for plans not in dba_hist_sql_plan yet
   select distinct 
@@ -421,7 +426,7 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
        sql_id,
        sql_plan_hash_value as plan_hash_value,
        0 as sql_plan_line_id,
-       'ASH fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
+       'ASH rows: '||count(*)||'; fixed ' || count(distinct sql_exec_id) || ' execs from ' || count(distinct session_id || ' ' || session_serial#) || ' sessions' as PLAN_OPERATION,
        null,
        null,
        null,
@@ -440,11 +445,13 @@ select 'SQL Summary' as LAST_PLSQL, -- SQL_ID Summary
    where sql_id              = '&&1' and                                -- direct SQL exec ONLY
          sql_plan_hash_value = nvl('&&2', sql_plan_hash_value) and
          NVL(sql_exec_id, 0) = nvl('&&3', NVL(sql_exec_id, 0))
+--NVL(sql_exec_id, 0) in (nvl('&3', NVL(sql_exec_id, 0)))
+--('&&3' is not null and sql_exec_id in (nvl(&&3,0)) or '&&3' is null)
 group by sql_id, sql_plan_hash_value
 UNION ALL
 select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
        sql_id,
-       to_number(null) as sql_plan_hash_value,
+sql_plan_hash_value,--       to_number(null) as sql_plan_hash_value,
        to_number(null) as sql_plan_line_id,
        'ASH rows: ' || sum(WAIT_COUNT) || '; Dist.Execs: ' || max(SQL_EXEC_COUNT) as PLAN_OPERATION,
        null,
@@ -464,7 +471,7 @@ select 'Recursive SQL by PHV' as LAST_PLSQL, -- Recursive Summary-3
 , '' as MIN_SAMPLE_TIME, '' as MAX_SAMPLE_TIME
   from ash_recrsv
    where nvl(sql_id,'XXX') != '&&1' -- recursive SQL exec ONLY
-  group by sql_id
+  group by sql_id, sql_plan_hash_value
 UNION ALL
 select 'Recursive SQL Summary' as LAST_PLSQL, -- Recursive Summary-3
        '',

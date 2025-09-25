@@ -47,4 +47,13 @@ select inst_id,
     natural join UndoStat
 /
 
+select tablespace_name,
+       count(distinct segment_name) as segs,
+       round(sum(bytes / 1024 / 1024 / 1024)) as gb,
+       sum(blocks) as blocks,
+       count(*) as undo_extents
+, (select round(sum(bytes / 1024 / 1024 / 1024))||'gb; max:'||round(sum(maxbytes / 1024 / 1024 / 1024))||'; autoext='||listagg(distinct AUTOEXTENSIBLE) as AUTOEXT from dba_data_files df where df.tablespace_name = ue.tablespace_name) as data_files
+  from DBA_UNDO_EXTENTS ue
+ group by tablespace_name;
+
 set verify on

@@ -1,8 +1,10 @@
 --What the OEbs concurrent program use this SQL_ID in system?
---@oebs_sql2conc_prg 5x1yhfjgxfdj8 1377610627 89000          100000        "MOD|SERV|CMAN" 0
+--@oebs_sql2conc_prg 5x1yhfjgxfdj8 1377610627 89000          100000        "MOD|SERV|CMAN|INST" 0
 --                   ^sql_id       ^phv       ^start snap_id ^stop snap_id  ^add.info      ^min ash rows
 set lines 300
 col request_list for a200
+col INSTANCES for a10
+col CM_NAME for a30
 
 with q as
  (select distinct instance_number,
@@ -23,8 +25,9 @@ select--+ parallel(8)
      , case when upper('&5') like '%MOD%' then q.module else '' end as module
      , case when upper('&5') like '%SERV%' then q.service else '' end as service
      , case when upper('&5') like '%CMAN%' then cm_name else '' end as cm_name
+     , case when upper('&5') like '%INST%' then to_char(instance_number) else '' end as inst
      , sum(ash_rows)
-, listagg(distinct request_id||status_code, ',' ON OVERFLOW TRUNCATE WITH COUNT) within group (order by ACTUAL_COMPLETION_DATE-ACTUAL_START_DATE desc) as request_list
+, substr(listagg(distinct request_id||status_code, ',' ON OVERFLOW TRUNCATE WITH COUNT) within group (order by ACTUAL_COMPLETION_DATE-ACTUAL_START_DATE desc),1,200) as request_list
 , listagg(distinct instance_number, ',') within group (order by instance_number) as instances
   from q
   left join (select distinct inst_id,
@@ -36,7 +39,7 @@ select--+ parallel(8)
     on inst_id = instance_number
    and sid = session_id
    and serial# = session_serial#
-   and max_timestamp > min_sample_time - 1
+   and max_timestamp > min_sample_time - 5 --?
   left join apps.fnd_concurrent_requests using (request_id)
   left join (select distinct concurrent_program_id,
                              concurrent_program_id || ', ' || USER_CONCURRENT_PROGRAM_NAME as CONCURRENT_PROGRAM_NAME
@@ -53,6 +56,7 @@ select--+ parallel(8)
         , case when upper('&5') like '%MOD%' then q.module else '' end
         , case when upper('&5') like '%SERV%' then q.service else '' end
         , case when upper('&5') like '%CMAN%' then cm_name else '' end
+     , case when upper('&5') like '%INST%' then to_char(instance_number) else '' end
  having sum(ash_rows) > &6
  order by sum(ash_rows) desc
 /

@@ -13,6 +13,7 @@ col CCWAITS_PER_EXEC for 999,999,999,999
 col min_snap_id for a20
 col max_snap_id for a20
 col SQL_OPNAME for a20
+col SQL_TEXT for a200
 
 with ash as
 ( select --+ parallel(8) materialize
@@ -23,6 +24,7 @@ with ash as
 , listagg(distinct top_level_sql_id, ';') within group (order by top_level_sql_id nulls last) as top_level_sqls
 , sql_plan_hash_value
 , sql_full_plan_hash_value
+--, optimizer_cost
 , sql_exec_id
 , listagg(distinct RAWTOHEX(xid), ';') within group (order by RAWTOHEX(xid) nulls last) as xids
 , service_hash
@@ -36,17 +38,24 @@ with ash as
 , count(distinct session_id) as px
 , max(temp_space_allocated)  as max_tmp_allocated
 , max(pga_allocated)         as max_pga_allocated
+, replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' ')  as SQL_TEXT
   from dba_hist_active_sess_history
+--left join dba_hist_sqlstat using(snap_id,dbid,instance_number,sql_id)
+left join dba_hist_sqltext t  using(sql_id, dbid, con_id)
  where (snap_id between '&2' and nvl('&3', '&2'))
    and sql_id in ('&1')
    and sql_exec_id > 0
  group by instance_number, sql_id, sql_opname--, top_level_sql_id
 , sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, nvl(qc_session_id, session_id), nvl(qc_session_serial#, session_serial#), service_hash--, xid
+, replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' ')
+--, optimizer_cost
  having --(cast(max(sample_time) as date)-cast(min(sample_time) as date)) < 1 and
         (cast(max(sample_time) as date)-cast(min(sample_time) as date)) >= 0
  order by 3)
 select inst, sid, serial#, xids
-, sql_id, sql_opname, top_level_sqls, sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, service_hash, ash_rows
+, sql_id, sql_opname, top_level_sqls, sql_plan_hash_value, sql_full_plan_hash_value
+--, optimizer_cost
+, sql_exec_id, service_hash, ash_rows
 , round(durn*86400) as seconds
 , max_sample_time-min_sample_time as duration
 , min_sample_time
@@ -54,7 +63,7 @@ select inst, sid, serial#, xids
 , min_snap_id
 , max_snap_id
 , px
-,(select 'min/max/sum rows: '||
+,(select 'Cost:'||max(nvl(optimizer_cost,0))||', min/max/sum rows: '||
          min(round(st.rows_processed_delta / decode(st.executions_delta, 0, 1, st.executions_delta)))
          ||' / '||
          max(round(st.rows_processed_delta / decode(st.executions_delta, 0, 1, st.executions_delta)))
@@ -71,6 +80,7 @@ select inst, sid, serial#, xids
    and st.snap_id between '&2' and nvl('&3', '&2')) as min_max_rows
 , max_tmp_allocated as max_tmp_per_sid
 , max_pga_allocated as max_pga_per_sid
+, sql_text
 from ash
 order by --sql_plan_hash_value,
  min_sample_time

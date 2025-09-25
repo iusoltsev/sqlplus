@@ -1,6 +1,6 @@
 --
 -- EBS concurrent analysis from DBA_HIST_ASH
--- Usage: SQL> @oebs_conc_hist19_21 "91911537,3332222111"    [SQL]|TOP|REQ|SID|MOD|"PL/"|INST|OBJ [10]
+-- Usage: SQL> @oebs_conc_hist19_21 "91911537,3332222111"    [SQL]|TEXT|TOP|REQ|SID|MOD|"PL/"|INST|OBJ|SERV|PROG [10]
 --                                 ^Request_id               ^FieldSelector                       ^topN_sql ^order by Duration desc, otherwise - by Activity desc
 --
 
@@ -32,6 +32,7 @@ col MIN_SAMPLE_TIME        for a26
 col MAX_SAMPLE_TIME        for a26
 col "ROOT_id(program_id)"  for a30
 col COMPLETION_TEXT for a200
+col CONCURRENT_PROGRAM_NAME for a200
 
 DEFINE v_DBID        = 0
 DEFINE v_min_snap_id = 0
@@ -87,6 +88,7 @@ with sids as
        serial#,
        min(v_timestamp) over () as min_timestamp
        , case when STATUS_CODE='R' then sysdate
+              when STATUS_CODE in ('X') and actual_completion_date is null then sysdate
               when STATUS_CODE in ('C','X','E','G') then actual_completion_date
               else max(v_timestamp) over () end as max_timestamp
        from system.fnd_concurrent_sessions join apps.fnd_concurrent_requests b using (request_id,parent_request_id)
@@ -139,7 +141,11 @@ select &v_DBID as DBID, &v_min_snap_id as min_snap_id, &v_max_snap_id as max_sna
 /
 select &v_DBID        , &v_min_snap_id               , &v_max_snap_id               , &v_child_reqs                    , &v_sum_ash_rows from dual
 /
-with sids as
+with
+  req_tbl as (select regexp_substr('&1', '[^,]+', 1, level) result
+                from dual
+             connect by level <= length(regexp_replace('&1', '[^,]+')) + 1)
+, sids as
       (select /*+ materialize */
        distinct module,
        CONNECT_BY_ROOT request_id as ROOT_request_id,
@@ -171,7 +177,9 @@ select distinct module,
        max(sample_time) over () as max_timestamp
 from AWR_CDB_ACTIVE_SESS_HISTORY
       where snap_id between &v_min_snap_id and &v_max_snap_id and dbid = &v_DBID
-and module = 'REQID='||'&1')
+--and module = 'REQID='||'&1'
+and module in (select 'REQID='||result from req_tbl)
+)
 --select * from sids
 --select count(distinct s.inst_id||' '||s.sid||' '||s.serial#), count(distinct s.request_id) from sids s
 /*
@@ -197,7 +205,7 @@ and module = 'REQID='||'&1')
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)               as sql_id
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)  as sql_plan_hash_value
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_opname)           as sql_opname
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
+      , decode(instr(upper('&2'), 'TEXT'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))  as SQL_TEXT
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' ')) as TOP_SQL_TEXT
       , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)  as PLSQL
       , sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
@@ -269,7 +277,7 @@ left join dba_services     s  on a.service_hash = name_hash
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', a.sql_id)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_plan_hash_value)
       , decode(instr(upper('&2'), 'SQL'), 0, 'na', sql_opname)
-      , decode(instr(upper('&2'), 'SQL'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))
+      , decode(instr(upper('&2'), 'TEXT'), 0, 'na', replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' '))
       , decode(instr(upper('&2'), 'TOP'), 0, 'na', replace(replace(dbms_lob.substr(t2.SQL_TEXT,200),chr(10),' '),chr(13),' '))
       , decode(instr(upper('&2'), 'PL/'), 0, 'na', dp.owner||'.'||dp.object_name||'.'||dp.PROCEDURE_NAME)
       , sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
@@ -323,22 +331,19 @@ select /*+ monitor parallel(4)*/-- cardinality(a 1e6) OPTIMIZER_FEATURES_ENABLE(
     from a
   group by
     ROOT_request_id
-  , request_id, parent_request_id
+  , parent_request_id, request_id
 , root_PROGRAM_ID, parent_PROGRAM_ID, CONCURRENT_PROGRAM_ID
   , inst, sid, serial
+, program, service_name
   , top_level_sql_id, a.sql_id, sql_plan_hash_value
   , sql_opname
   --, sql_exec_id----, PLSQL_ENTRY_OBJECT_ID, PLSQL_ENTRY_SUBPROGRAM_ID--, PLSQL_OBJECT_ID, PLSQL_SUBPROGRAM_ID
   , PLSQL
-  , a.module, action, client_id
-  , DATA_OBJECT
-, program, service_name
+  , module, action, client_id
   --, xid
+  , DATA_OBJECT
   , SQL_TEXT
   , TOP_SQL_TEXT
-  --, EVENT
-----  , sids_sids
-----  , sids_reqs
   order by sum(ash_row) desc--decode(upper('&4'), 'D'
                             -- , 24      --rough_dur_secs
                             -- , 21) desc--sum(ash_row)

@@ -1,6 +1,8 @@
+set echo off
 col INST_ID for  a7
 col USERNAME for a30
 col CLIENT_ID for a40
+col sql_text for a100
 set pages 100
 
 SELECT s.inst_id,

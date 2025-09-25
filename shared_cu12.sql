@@ -41,6 +41,9 @@ col "DURATIONs"     for a25
 col "V$SQL.Adapt"   for a11
 col "XML.Adapt"     for a9
 col CF            for a3
+col ELA_PER_EXEC  for a30
+col CPU_PER_EXEC  for a30
+col CONC_PER_EXEC for a30
 
 select s.inst_id    as INST,
        s.EXECUTIONS as EXECS,
@@ -144,7 +147,8 @@ sid, serial#,
                       sql_child_number as child,
 case when sysdate - cast(max(sample_time) as date) <= 1/86400 then '*' else ' ' end as C,
                --       sql_child_number                    as CHILD_ID,
-                      count(distinct sample_time)         as ash_rows,
+                      count(distinct sample_time)         as samples,
+                      sum(ash_rows)                       as ash_rows,
                       max(PX)                             as PX,
                       sql_exec_start,
                       max(sample_time) - min(sample_time) as "DURATIONs",
@@ -165,6 +169,7 @@ nvl(qc_session_serial#, session_serial#) as serial#,
                               count(distinct inst_id||','||session_id||','||session_serial#) as PX,
                               sum(temp_space_allocated)                                      as temp_space_allocated,
                               sum(pga_allocated)                                             as pga_allocated
+                             ,count(*)                                                       as ash_rows
                , REGEXP_SUBSTR(client_id, '.+\#') as CLIENT_ID
                          from gv$active_session_history
                         where sql_id = '&&1'

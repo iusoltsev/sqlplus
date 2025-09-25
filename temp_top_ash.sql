@@ -1,7 +1,7 @@
 --
 -- The TEMP usage SQL_EXEC top from ASH
 -- SQL> @temp_top_ash gv$active_session_history [10]
---                          ^top sql_exec count
+--                                              ^top sql_exec count
 --
 col MAX_SAMPLE_TIME for a26
 col duration for a24

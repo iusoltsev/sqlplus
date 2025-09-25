@@ -1,3 +1,6 @@
+-- Object blocks in Buffer Cache by STATE, CLASS_TYPE, [LAST_TOUCH_TIME]
+-- SQL> @v$bhx gl GL_INTERFACE_N1 [T]
+--                                 ^ if LAST_TOUCH_TIME for blocks required
 SET VERIFY OFF
 col OWNER for a30
 col OBJECT_NAME for a30
@@ -14,6 +17,7 @@ decode(class,1,'data block',2,'sort block',3,'save undo block', 4,'segment heade
 --, dbablk
 --, ba
 --,tch
+, decode('&3','T',to_char(date'1970-01-01' + tim/24/60/60, 'dd.mm.yyyy hh24:mi:ss'),'') LAST_TOUCH_TIME
 , count(*)
 from x$bh b , dba_objects o
 where b.obj = o.data_object_id
@@ -25,6 +29,7 @@ o.object_name,decode(state,0,'free',1,'xcur',2,'scur',3,'cr', 4,'read',5,'mrec',
 decode(class,1,'data block',2,'sort block',3,'save undo block', 4,'segment header',5,'save undo header',6,'free list',7,'extent map',
 8,'1st level bmb',9,'2nd level bmb',10,'3rd level bmb', 11,'bitmap block',12,'bitmap index block',13,'file header block',14,'unused',
 15,'system undo header',16,'system undo block', 17,'undo header',18,'undo block')
+, decode('&3','T',to_char(date'1970-01-01' + tim/24/60/60, 'dd.mm.yyyy hh24:mi:ss'),'')
 /
 /*
 select o.OWNER,

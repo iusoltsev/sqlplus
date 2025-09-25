@@ -1,10 +1,10 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/ ROWID"
+-- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, QUERY, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/ ROWID PARAM"
 -- http://iusoltsev.wordpress.com
 --
 
-set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF
+set echo off feedback off heading on timi off pages 1000 lines 5000 VERIFY OFF
 
 col INST_ID for 9999999
 col WAIT_LEVEL for 999
@@ -18,7 +18,17 @@ col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 col BLOCK_STATUS for a14
---col XID_LIST for a4000
+col XID_LIST for a200
+col SID_LIST for a200
+col QC_SID_LIST       for a200
+col BLOKER_LIST                for a200
+
+col SQL_OPNAME for a30
+
+
+
+
+
 
 with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, ash.* from dba_hist_active_sess_history ash &3
 --		where sample_time > sysdate-1/24
@@ -40,6 +50,7 @@ select--+ parallel(5) opt_param('_fix_control' '16166364:off')
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
           when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
           when REGEXP_INSTR(program, '\(W...\)')     > 0 then '(W...)'
+          when REGEXP_INSTR(program, '\(DBW.\)')     > 0 then '(DBW.)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end as BLOCKING_TREE,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end as MODULE,
@@ -58,25 +69,31 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
             when event = 'DFS lock handle' then p1||' '||p2
        end as "Parameters",
 */
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when event = 'latch free' then to_char(p1)
-            when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
-            when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
-            when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
-            when event = 'enq: JI - contention' then p2text||' '||p2
-            when event = 'enq: SQ - contention' then p2text||' '||p2
-            when event = 'DFS lock handle' then p1||' '||p2
-            when event = 'rdbms ipc reply' then p1text||' '||p1
-       end as "Param[RAW]",
+decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
+       case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
+            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
+            when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
+            when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
+            when ash.event = 'row cache mutex' then ash.p1text||'='||ash.p1||' '||ash.p2text||'='||ash.p2
+            when ash.event = 'enq: JI - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: MS - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: TQ - DDL contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: SQ - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: HW - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
+            when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
+       end) as "Param[RAW]",
 ----       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name) as DATA_OBJECT,
-decode(current_obj#,0,'0',-1,'-1','No') as Undo,
+decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', decode(current_obj#,0,'0',-1,'-1','No')) as Undo,
 decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#)) as "ROWID",
 --case when session_state='WAITING' and p1text='handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
 SQL_OPNAME,
 In_hard_Parse,
 In_Parse,
 In_Sql_Execution,
+in_connection_mgmt as In_conn_mgmt,
 --sql_adaptive_plan_resolved as ADAPTIVE,
 --sql_child_number,
 --machine,
@@ -106,11 +123,12 @@ max(sample_time) as max_stime
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_line_ID) as plan_line_ID
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_operation||' '||sql_plan_options) as SQL_PLAN_OPERATION
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9))) as sql_text
-,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))) as sql_text
+,decode(instr(upper('&&4'), 'QUERY'), 0, 'Not Req.', trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9)))) as sql_text
 --,LISTAGG(distinct ash.instance_number||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
-,LISTAGG(distinct nvl(qc_instance_id ,ash.instance_number)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
-,LISTAGG(distinct ash.blocking_inst_id||'#'||blocking_session||'#'||blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as BLOKER_LIST
-,LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as XID_LIST
+,substr(LISTAGG(distinct nvl(ash.instance_number ,ash.instance_number)||'#'||nvl(session_id, session_id)||'#'||nvl(session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc),1,200) as SID_LIST
+,substr(LISTAGG(distinct nvl(qc_instance_id ,ash.instance_number)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc),1,200) as QC_SID_LIST
+,substr(LISTAGG(distinct ash.blocking_inst_id||'#'||blocking_session||'#'||blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc),1,200) as BLOKER_LIST
+,substr(LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc),1,200) as XID_LIST
 ,min(snap_id) as min_snap_id
 ,max(snap_id) as max_snap_id
   from --gv$active_session_history
@@ -143,6 +161,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
           when REGEXP_INSTR(program, '\(MS..\)')     > 0 then '(MS..)'
           when REGEXP_INSTR(program, '\(LMS.\)')     > 0 then '(LMS.)'
           when REGEXP_INSTR(program, '\(W...\)')     > 0 then '(W...)'
+          when REGEXP_INSTR(program, '\(DBW.\)')     > 0 then '(DBW.)'
           else REGEXP_REPLACE(REGEXP_SUBSTR(program, '\([^\)]+\)'), '([[:digit:]])', '.')
         end,
 --       case when module not like 'oracle%' then substr(module,1,9) else module end,
@@ -157,19 +176,24 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
           wait_class,
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
-       case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||p3text||' 0x'||lpad(trim(to_char(p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when event = 'latch free' then to_char(p1)
-            when event = 'enq: UL - contention' then to_char(p2)--(select NAME from dbms_lock_allocated where lockid = p2)
-            when event = 'enq: TM - contention' then chr(bitand(p1,-16777216)/16777215)||chr(bitand(p1, 16711680)/65535)||' '||bitand(p1, 65535)
-            when event = 'row cache lock' then 'cache='||p1||' held='||decode(p2,0,'null',3,'share',5,'ex',10,'fail',p2)||' req='||decode(p3,0,'null',3,'share',5,'ex',10,'fail',p3)
-            when event = 'enq: JI - contention' then p2text||' '||p2
-            when event = 'enq: SQ - contention' then p2text||' '||p2
-            when event = 'DFS lock handle' then p1||' '||p2
-            when event = 'rdbms ipc reply' then p1text||' '||p1
-       end,
+decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
+       case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
+            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
+            when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
+            when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
+            when ash.event = 'row cache mutex' then ash.p1text||'='||ash.p1||' '||ash.p2text||'='||ash.p2
+            when ash.event = 'enq: JI - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: MS - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: TQ - DDL contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: SQ - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'enq: HW - contention' then ash.p2text||' '||ash.p2
+            when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
+            when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
+       end),
 --       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name),
-decode(current_obj#,0,'0',-1,'-1','No'),
+decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', decode(current_obj#,0,'0',-1,'-1','No')),
 decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#)),
 decode(instr(upper('&&4'), 'SERV'), 0, 'Not Req.', s.name),
 --sql_adaptive_plan_resolved,
@@ -180,7 +204,8 @@ decode(instr(upper('&&4'), 'SERV'), 0, 'Not Req.', s.name),
 SQL_OPNAME,
 In_hard_Parse,
 In_Parse,
-In_Sql_Execution
+In_Sql_Execution,
+in_connection_mgmt
 --machine,
 --program,
 --module,
@@ -197,7 +222,7 @@ In_Sql_Execution
        ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_line_ID)
        ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_operation||' '||sql_plan_options)
 --          ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9)))
-,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))))
+,decode(instr(upper('&&4'), 'QUERY'), 0, 'Not Req.', trim(replace(replace(replace(sql_text ,chr(10)),chr(13)),chr(9))))
  having count(distinct sample_id) > nvl('&2', 0)
  order by LEVEL, count(1) desc
 /

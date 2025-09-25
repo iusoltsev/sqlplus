@@ -201,5 +201,5 @@ from (
         from 
                 finalans
         ) g
---where qbreg like '%'||'&3'||'%'
+where qbreg like '%'||'&3'||'%'
 /

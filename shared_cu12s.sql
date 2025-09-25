@@ -1,8 +1,15 @@
 set feedback on 1 heading on echo off VERIFY OFF
 
+col ELA_PER_EXEC for a30
+col CPU_PER_EXEC for a30
+col CONC_PER_EXEC for a30
+
 select
     inst_id,
     s.PLAN_HASH_VALUE,
+min(s.first_load_time)                                    as min_first_load_time,
+max(s.last_load_time)                                     as max_last_load_time,
+to_char(max(s.last_active_time), 'dd.mm.yyyy hh24:mi:ss') as max_LAST_ACTIVE_TIME,
     sum(s.EXECUTIONS)                                                                      as EXECS,
     sum(s.users_opening)                                                                   as USERS_OPENING,
     round(SUM(s.ROWS_PROCESSED)/decode(SUM(s.EXECUTIONS),0,1,SUM(s.EXECUTIONS)))           as ROWS_PER_EXEC,
@@ -92,7 +99,7 @@ select
 @@v$sqlstats2 &&1 &&2
 pro
 pro --------------------------------------------------------------
-pro ASH TOP5 SQL_ID=&&1 Executions by Elapsed Time
+pro ASH TOP&&3 SQL_ID=&&1 Executions by Elapsed Time
 pro --------------------------------------------------------------
 select *
   from (select inst_id,
@@ -112,6 +119,6 @@ select *
          group by inst_id, sql_id, sql_child_number, sql_exec_id, sql_plan_hash_value
 , sql_full_plan_hash_value
          order by count(distinct sample_id) desc)
- where rownum <= 15
+ where rownum <= NVL('&&3',15)
 /
 set feedback on VERIFY ON

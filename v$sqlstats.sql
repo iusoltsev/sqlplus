@@ -2,7 +2,7 @@ set feedback off heading on timi off pages 200 lines 1000 echo off  VERIFY OFF
 pro
 pro --------------------------------------------------------------
 
-pro SQL_ID=&&1 Shared Pool GV$SQLSTATS
+pro SQL_ID=&&1 statistics by GV$SQLSTATS
 
 pro --------------------------------------------------------------
 

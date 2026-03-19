@@ -1,6 +1,7 @@
 col SQL_TEXT for a100
 col USERNAME for a30
 col OSUSER   for a20
+col SQL_EXEC_START for a20
 SELECT--+ ordered
        sysdate,
        a.inst_id,

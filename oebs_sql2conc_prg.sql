@@ -1,13 +1,15 @@
 --What the OEbs concurrent program use this SQL_ID in system?
---@oebs_sql2conc_prg 5x1yhfjgxfdj8 1377610627 89000          100000        "MOD|SERV|CMAN|INST" 0
---                   ^sql_id       ^phv       ^start snap_id ^stop snap_id  ^add.info      ^min ash rows
+--@oebs_sql2conc_prg "5x1yhfjgxfdj8','5x1yhfjgxfdj8" 1377610627 89000          100000        "MOD|SERV|CMAN|INST" 0
+--                   ^sql_id                         ^phv       ^start snap_id ^stop snap_id  ^add.info           ^min ash rows
 set lines 300
 col request_list for a200
 col INSTANCES for a10
 col CM_NAME for a30
 
 with q as
- (select distinct instance_number,
+ (select distinct
+                  SQL_ID, 
+                  instance_number,
                   session_id,
                   session_serial#,
                   module,
@@ -19,8 +21,25 @@ with q as
     from dba_hist_active_sess_history
     left join dba_services s on s.name_hash = service_hash
    where  snap_id between &3 and &4 and sql_id in ('&1')
+    and (SQL_PLAN_HASH_VALUE = NVL('&2',SQL_PLAN_HASH_VALUE) or '&2' = '0')
+union all
+  select distinct
+                  SQL_ID,
+                  QC_INSTANCE_ID,
+                  QC_SESSION_ID,
+                  QC_SESSION_SERIAL#,
+                  module,
+                  decode(nvl(s.name,service_hash),'3427055676','SYS$USERS',nvl(s.name,service_hash)) as service,
+                  count(*) over(partition by instance_number, session_id, session_serial#,
+                                             module,
+                                             decode(nvl(s.name,service_hash),'3427055676','SYS$USERS',nvl(s.name,service_hash))) as ash_rows
+                 ,min(sample_time) over() as min_sample_time
+    from dba_hist_active_sess_history
+    left join dba_services s on s.name_hash = service_hash
+   where  snap_id between &3 and &4 and sql_id in ('&1')
     and (SQL_PLAN_HASH_VALUE = NVL('&2',SQL_PLAN_HASH_VALUE) or '&2' = '0'))
 select--+ parallel(8)
+SQL_ID, 
        CONCURRENT_PROGRAM_NAME
      , case when upper('&5') like '%MOD%' then q.module else '' end as module
      , case when upper('&5') like '%SERV%' then q.service else '' end as service
@@ -52,7 +71,9 @@ select--+ parallel(8)
              where a.concurrent_queue_id = b.concurrent_queue_id
                and a.concurrent_process_id = c.controlling_manager)
     using (request_id)
- group by CONCURRENT_PROGRAM_NAME
+ group by 
+SQL_ID, 
+          CONCURRENT_PROGRAM_NAME
         , case when upper('&5') like '%MOD%' then q.module else '' end
         , case when upper('&5') like '%SERV%' then q.service else '' end
         , case when upper('&5') like '%CMAN%' then cm_name else '' end

@@ -55,7 +55,7 @@ select s.inst_id as INST,
   join gv$sql s on sc.inst_id = s.inst_id and sc.child_address = s.child_address and sc.sql_id = s.sql_id
   left join gv$sql_plan p on p.inst_id = s.inst_id and p.child_address = s.child_address and p.sql_id = s.sql_id and p.other_xml is not null
  where s.sql_id = '&1'
-   and s.PLAN_HASH_VALUE = NVL('&2',s.PLAN_HASH_VALUE)
+   and (s.PLAN_HASH_VALUE = NVL('&2',s.PLAN_HASH_VALUE) or '&2'='0')
 order by s.inst_id, --s.child_number
 	s.last_active_time desc
 /

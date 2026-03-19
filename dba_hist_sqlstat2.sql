@@ -1,7 +1,7 @@
 --
 -- SQL execution extended analysis with rows_per_exec,... values from ASH, sqlstats
--- SQL> @dba_hist_sqlstat2 "6585ka4kkk8fs" 13703          14400
---                         ^sql_id        ^start_snap_id ^stop_snap_id
+-- SQL> @dba_hist_sqlstat2 "6585ka4kkk8fs" 0     13703          14400         10
+--                         ^sql_id         ^phv  ^start_snap_id ^stop_snap_id min ash_rows
 --
 col ELA_PER_EXEC for 999,999,999,999
 col CPU_PER_EXEC for 999,999,999,999
@@ -15,6 +15,10 @@ col max_snap_id for a20
 col SQL_OPNAME for a20
 col SQL_TEXT for a200
 
+select min(begin_interval_time) as min_interval_time, max(end_interval_time) as max_interval_time
+from dba_hist_snapshot
+where (snap_id between '&3' and nvl('&4', '&3'))
+/
 with ash as
 ( select --+ parallel(8) materialize
   instance_number as inst
@@ -42,9 +46,10 @@ with ash as
   from dba_hist_active_sess_history
 --left join dba_hist_sqlstat using(snap_id,dbid,instance_number,sql_id)
 left join dba_hist_sqltext t  using(sql_id, dbid, con_id)
- where (snap_id between '&2' and nvl('&3', '&2'))
+ where (snap_id between '&3' and nvl('&4', '&3'))
    and sql_id in ('&1')
    and sql_exec_id > 0
+and (sql_plan_hash_value = &2 or '&2' = 0)
  group by instance_number, sql_id, sql_opname--, top_level_sql_id
 , sql_plan_hash_value, sql_full_plan_hash_value, sql_exec_id, nvl(qc_session_id, session_id), nvl(qc_session_serial#, session_serial#), service_hash--, xid
 , replace(replace(dbms_lob.substr(t.SQL_TEXT,200),chr(10),' '),chr(13),' ')
@@ -75,13 +80,15 @@ select inst, sid, serial#, xids
  where st.snap_id between min_snap_id and max_snap_id
    and st.instance_number = inst
    and st.sql_id in ('&1')
+--and (st.plan_hash_value = &2 or '&2' = 0)
    and st.sql_id = ash.sql_id
    and st.plan_hash_value = ash.sql_plan_hash_value
-   and st.snap_id between '&2' and nvl('&3', '&2')) as min_max_rows
+   and st.snap_id between '&3' and nvl('&4', '&3')) as min_max_rows
 , max_tmp_allocated as max_tmp_per_sid
 , max_pga_allocated as max_pga_per_sid
 , sql_text
 from ash
+where ash_rows >= &5
 order by --sql_plan_hash_value,
  min_sample_time
 /

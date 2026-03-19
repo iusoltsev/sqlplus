@@ -136,6 +136,7 @@ select /*+ MONITOR
      , NVL(s.sql_child_number, s.prev_child_number) as child
      , sql_exec_id
      , to_char(sql_exec_start,'dd.mm hh24:mi:ss') as sql_exec_start
+, to_char(LOGON_TIME,'dd.mm hh24:mi:ss') as sid_logon_time
      , substr(replace(replace(sa1.SQL_TEXT,chr(10),' '),chr(13),' '),1,200) as SQL_TEXT
  from b3
  join gvs s on s.inst_id =  b3.inst_id and s.sid = b3.sid

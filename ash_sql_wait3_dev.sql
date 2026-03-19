@@ -18,6 +18,9 @@ col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 col CHAR_DATE new_value SYS_DATE
 col EVENTS for 999999999
+col SID_LIST for a200
+col QC_SID_LIST for a200
+col BLOKER_LIST for a200
 --col XID_LIST for a160
 
 SET TERMOUT OFF
@@ -26,9 +29,11 @@ select to_char(sysdate,'dd.mm.yyyy hh24:mi:ss') CHAR_DATE from dual;
  
 SET TERMOUT ON
 
+--alter session set cursor_sharing = 'EXACT';
+
 with ash as (select /*+ materialize parallel(8) */ CAST(sample_time AS DATE) as stime, ash.*, '&&SYS_DATE' as SDATE from &3
 		)
-select--+ parallel(8) opt_param('_fix_control' '16166364:off')
+select--+ parallel(8) opt_param('_fix_control' '16166364:off') CURSOR_SHARING_EXACT
        LEVEL as LVL,
        CONNECT_BY_ISCYCLE as ISCYCLE,
        ash.inst_id,
@@ -61,7 +66,7 @@ decode(instr(upper('&&4'), 'WAIT'), 0, 'Not Req.', decode(session_state, 'WAITIN
        ash.wait_class,
 decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
        case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'latch free' then ltch.name--trim(to_char(ash.p2,'xxxxxx'))--(select name from v$latchname where latch# = trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')))
             when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
             when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
@@ -73,6 +78,7 @@ decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
             when ash.event = 'enq: HW - contention' then ash.p2text||' '||ash.p2
             when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
             when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
+            when ash.event = 'enq: CU - contention' then upper(lpad(trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3
        end) as "Param[RAW]",
 ----       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name) as DATA_OBJECT,
@@ -115,11 +121,11 @@ max(sample_time) as max_stime
 ,decode(instr(upper('&&4'), 'PLAN'), 0, 'Not Req.', sql_plan_operation||' '||sql_plan_options) as SQL_PLAN_OPERATION
 --       ,trim(replace(replace(replace(dbms_lob.substr(sql_text,200),chr(10)),chr(13)),chr(9))) as sql_text
 ,decode(instr(upper('&&4'), 'SQL')+instr(upper('&&4'), 'QUERY'), 0, 'Not Req.', trim(replace(replace(replace(hs.sql_text ,chr(10)),chr(13)),chr(9)))) as sql_text
-,LISTAGG(distinct ash.inst_id||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
-,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as QC_SID_LIST
-,LISTAGG(distinct ash.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as PROG_LIST
+,substr(LISTAGG(distinct ash.inst_id||'#'||session_id||'#'||session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as SID_LIST
+,substr(LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as QC_SID_LIST
+,substr(LISTAGG(distinct ash.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as PROG_LIST
 -----,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
-,LISTAGG(distinct ash.blocking_inst_id||'#'||ash.blocking_session||'#'||ash.blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as BLOKER_LIST
+,substr(LISTAGG(distinct ash.blocking_inst_id||'#'||ash.blocking_session||'#'||ash.blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as BLOKER_LIST
 ,LISTAGG(distinct bs.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as BLOKER_program_LIST
 ,LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as XID_LIST
   from ash
@@ -130,6 +136,7 @@ max(sample_time) as max_stime
        left join CDB_objects      o  on ash.current_obj# = o.object_id and ash.con_id = o.con_id
        left join gv$services      s  on name_hash = service_hash and ash.inst_id = s.inst_id
 left join gv$session      bs  on ash.blocking_session = bs.sid and ash.blocking_session_serial# = bs.serial# and ash.blocking_inst_id = bs.inst_id
+left join v$latchname ltch on latch# = ash.p2
  start with &1
 connect by
 nocycle 
@@ -168,7 +175,7 @@ decode(instr(upper('&&4'), 'WAIT'), 0, 'Not Req.', decode(session_state, 'WAITIN
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
 decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
        case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'latch free' then ltch.name--trim(to_char(ash.p2,'xxxxxx'))--(select name from v$latchname where latch# = trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')))
             when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
             when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
@@ -180,6 +187,7 @@ decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
             when ash.event = 'enq: HW - contention' then ash.p2text||' '||ash.p2
             when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
             when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
+            when ash.event = 'enq: CU - contention' then upper(lpad(trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3
        end),
 --       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name),

@@ -13,7 +13,7 @@ col CCWAITS_PER_EXEC for 999,999,999,999
 
 select 
     instance_number as inst,
-    (snap_id - 1) as Begin_Snap_id,
+    (snap_id) as Snap_id,
     to_char(sn.begin_interval_time,'dd.mm hh24:mi') as begin_snap_time,
     round(st.executions_delta) as execs,
 --    round(st.executions_delta * (st.rows_processed_delta/decode(st.executions_delta,0,1,st.executions_delta))) as rows_processed,

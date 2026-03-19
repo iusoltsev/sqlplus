@@ -1,6 +1,6 @@
 --
 -- ASH wait tree for Waits Event or SQL_ID
--- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "SQL, QUERY, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/ ROWID PARAM"
+-- Usage: SQL> @ash_sql_wait3_dev_hist "sql_id = '83w0zrqyzathc'" 0 "where snap_id between 43425 and 43433" "INST SQL, QUERY, EVENT, MODULE, ACTION, CLI, OBJ, SERV, PLAN, CALL, PL/ ROWID PARAM"
 -- http://iusoltsev.wordpress.com
 --
 
@@ -17,7 +17,7 @@ col CLIENT_ID for a60
 col WAITS for 999999
 col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
-col BLOCK_STATUS for a14
+col BLOCK_STATUS for a20
 col XID_LIST for a200
 col SID_LIST for a200
 col QC_SID_LIST       for a200
@@ -33,10 +33,11 @@ col SQL_OPNAME for a30
 with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, ash.* from dba_hist_active_sess_history ash &3
 --		where sample_time > sysdate-1/24
 		)
-select--+ parallel(5) opt_param('_fix_control' '16166364:off')
+select--+ parallel(8) opt_param('_fix_control' '16166364:off')
        LEVEL as LVL,
        CONNECT_BY_ISCYCLE as ISCYCLE,
-       ash.instance_number as INST,
+LISTAGG(distinct ash.instance_number, ',' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1) as INST_LIST,
+decode(instr(upper('&&4'), 'INST'), 0, '0', ash.instance_number) as inst,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
         case when program like 'rman%' then '(RMAN)'
@@ -71,7 +72,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
 */
 decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
        case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'latch free' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))--to_char(ash.p1)
             when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
             when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
@@ -112,7 +113,7 @@ decode(instr(upper('&&4'), 'CALL'), 0, 'Not Req.', top_level_call_name) as top_l
        count(distinct ash.instance_number||session_id||session_serial#) as SESS_COUNT,
 --       p.owner||'.'||p.object_name||'.'||p.procedure_name as PLSQL_OBJECT_ID,
 decode(instr(upper('&&4'), 'PL/'), 0, 'Not Req.', p.owner||'.'||p.object_name||'.'||p.procedure_name) as PLSQL_OBJECT,
-       blocking_session_status||' i#'||blocking_inst_id as BLOCK_STATUS,
+       blocking_session_status||' i#'||decode(instr(upper('&&4'), 'INST'), 0, '0', blocking_inst_id) as BLOCK_STATUS,
 count(distinct blocking_inst_id||'*'||blocking_session||'*'||blocking_session_serial#) as BLOCKERS,
 min(sample_time) as min_stime,
 max(sample_time) as max_stime
@@ -148,7 +149,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 --                and ash.instance_number         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
           CONNECT_BY_ISCYCLE,
-          ash.instance_number,
+decode(instr(upper('&&4'), 'INST'), 0, '0', ash.instance_number),
 --          BLOCKING_INST_ID,
         case when program like 'rman%' then '(RMAN)'
           when REGEXP_INSTR(program, '\([A-Z]...\)') = 0 then '(USER)'
@@ -178,7 +179,7 @@ decode(instr(upper('&&4'), 'EVENT'), 0, 'Not Req.', decode(session_state, 'WAITI
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
 decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
        case when ash.p1text = 'handle address' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3text||' 0x'||lpad(trim(to_char(ash.p3,'xxxxxxxxxxxxxxxx')),6,'0')
-            when ash.event = 'latch free' then to_char(ash.p1)
+            when ash.event = 'latch free' then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0'))--to_char(ash.p1)
             when ash.event = 'enq: UL - contention' then to_char(ash.p2)--(select NAME from dbms_lock_allocated where lockid = p2)
             when ash.event = 'enq: TM - contention' then chr(bitand(ash.p1,-16777216)/16777215)||chr(bitand(ash.p1, 16711680)/65535)||' '||bitand(ash.p1, 65535)
             when ash.event = 'row cache lock' then 'cache='||ash.p1||' held='||decode(ash.p2,0,'null',3,'share',5,'ex',10,'fail',ash.p2)||' req='||decode(ash.p3,0,'null',3,'share',5,'ex',10,'fail',ash.p3)
@@ -213,7 +214,7 @@ in_connection_mgmt
 --       p2text, p2,
 --          p3,
 --          p.owner||'.'||p.object_name||'.'||p.procedure_name,
-          ,blocking_session_status||' i#'||blocking_inst_id
+,blocking_session_status||' i#'||decode(instr(upper('&&4'), 'INST'), 0, '0', blocking_inst_id)
 ,decode(instr(upper('&&4'), 'PL/'), 0, 'Not Req.', p.owner||'.'||p.object_name||'.'||p.procedure_name)
 ,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', sql_ID)
 ,decode(instr(upper('&&4'), 'SQL'), 0, 'Not Req.', top_level_sql_id)

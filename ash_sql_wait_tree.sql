@@ -22,6 +22,7 @@ with ash as (select /*+ materialize*/ CAST(sample_time AS DATE) as stime, s.* fr
 		)
 select--+ opt_param('_fix_control' '16166364:off')
        LEVEL as LVL,
+       CONNECT_BY_ISCYCLE as CCL,
        inst_id,
 --       BLOCKING_INST_ID,
        LPAD(' ',(LEVEL-1)*2)||--decode(ash.session_type,'BACKGROUND',REGEXP_SUBSTR(program, '\([^\)]+\)'), nvl2(qc_session_id, 'PX', 'FOREGROUND')) as BLOCKING_TREE,
@@ -41,14 +42,14 @@ select--+ opt_param('_fix_control' '16166364:off')
        decode(session_state, 'WAITING', EVENT, 'On CPU / runqueue') as EVENT,
        wait_class,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            when event = 'latch free' then to_char(p1) end
+            when ash.event in ('latch free','latch: row cache objects') then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0')) end
                                                   as "P1[RAW]",
        o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 --case when session_state='WAITING' and p1text='handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end as DATA_OBJECT_p1raw,
 In_hard_Parse,
 In_Parse,
 In_Sql_Execution,
-sql_adaptive_plan_resolved as ADAPTIVE,
+--sql_adaptive_plan_resolved as ADAPTIVE,
 --sql_child_number,
 --machine,
 --program,
@@ -90,6 +91,7 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
                 and ash.SESSION_SERIAL# = prior ash.BLOCKING_SESSION_SERIAL#
 --                and ash.INST_ID         = prior ash.BLOCKING_INST_ID
  group by LEVEL,
+          CONNECT_BY_ISCYCLE,
           inst_id,
 --          BLOCKING_INST_ID,
         case when program like 'rman%' then '(RMAN)'
@@ -110,9 +112,9 @@ connect by nocycle (--ash.SAMPLE_ID       = prior ash.SAMPLE_ID or
 --        case when p1text = 'handle address' or event = 'latch: row cache objects' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
 --             else o.owner||'.'||o.object_name||'.'||o.subobject_name end,
        case when p1text = 'handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0'))
-            when event = 'latch free' then to_char(p1) end,
+            when ash.event in ('latch free','latch: row cache objects') then upper(lpad(trim(to_char(ash.p1,'xxxxxxxxxxxxxxxx')),16,'0')) end,
        o.owner||'.'||o.object_name||'.'||o.subobject_name,
-sql_adaptive_plan_resolved,
+--sql_adaptive_plan_resolved,
 --sql_child_number,
 --       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 --case when session_state='WAITING' and p1text='handle address' then upper(lpad(trim(to_char(p1,'xxxxxxxxxxxxxxxx')),16,'0')) end,

@@ -10,6 +10,7 @@ set feedback off heading on timi off pages 200 lines 1000 echo off  VERIFY OFF
 col INST for 9999
 col EXECS for 999999999999
 col CHILD for 99999
+col CHILD_LIST for a20
 col BIND_SENSE for a10
 col BIND_AWARE for a10
 col SHAREABLE for a10
@@ -33,7 +34,7 @@ col CURSOR_STATUS for a19
 col DS_LEVEL for a8
 col DOP for a3
 col DOP_REASON for a30
-col PARSING_SCHEMA_NAME a20
+col PARSING_SCHEMA_NAME for a20
 
 col reason#1 for a40
 col reason#2 for a40
@@ -67,6 +68,7 @@ select s.inst_id                                                                
        round(sum(s.ROWS_PROCESSED)/decode(sum(s.EXECUTIONS),0,1,sum(s.EXECUTIONS)))        as ROWS_PER_EXEC,
        round(avg(s.optimizer_cost))                                                        as AVG_CBO_COST,
        count(distinct s.child_number)                                                      as CHILDS,
+       listagg(distinct s.child_number,',')                                                as CHILD_LIST,
        max(s.IS_BIND_SENSITIVE)                                                            as "BIND_SENSE",
        max(s.IS_BIND_AWARE)                                                                as "BIND_AWARE",
        max(s.IS_REOPTIMIZABLE)                                                             as "REOPT",

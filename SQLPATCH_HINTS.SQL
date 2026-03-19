@@ -1,7 +1,7 @@
 -- SQL Patch hints list
 -- Usage: SQL> @SQLPATCH_HINTS "Patch Name"
 --
-col sql_patch_hints for a300
+col sql_patch_hints for a500
 set verify off lines 200
 
 select substr(extractvalue(value(d), '/hint'), 1, 512) as sql_patch_hints

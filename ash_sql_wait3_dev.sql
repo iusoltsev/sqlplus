@@ -4,7 +4,7 @@
 -- http://iusoltsev.wordpress.com
 --
 
-set echo off feedback off heading on timi off pages 1000 lines 500 VERIFY OFF
+set echo off feedback off heading on timi off pages 1000 lines 5000 VERIFY OFF
 
 col INST_ID for 9999999
 col WAIT_LEVEL for 999
@@ -18,10 +18,14 @@ col AVG_WAIT_TIME_MS for 999999
 col DATA_OBJECT_p1raw for a52
 col CHAR_DATE new_value SYS_DATE
 col EVENTS for 999999999
-col SID_LIST for a200
-col QC_SID_LIST for a200
-col BLOKER_LIST for a200
---col XID_LIST for a160
+col SID_LIST            for a200
+col QC_SID_LIST         for a200
+col BLOKER_LIST         for a200
+col XID_LIST            for a200
+col BLOKER_PROGRAM_LIST for a200
+col Param_RAW for a30
+col WAIT_CLASS for a30
+
 
 SET TERMOUT OFF
  
@@ -79,7 +83,8 @@ decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
             when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
             when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
             when ash.event = 'enq: CU - contention' then upper(lpad(trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3
-       end) as "Param[RAW]",
+            when ash.p1text = 'name|mode' then chr(bitand(ash.p1,-16777216)/16777215)||'|'||chr(bitand(ash.p1,16711680)/65535)
+       end) as Param_RAW,
 ----       o.owner||'.'||o.object_name||'.'||o.subobject_name as DATA_OBJECT,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name) as DATA_OBJECT,
 decode(instr(upper('&&4'), 'ROWID'), 0, 'Not Req.', DBMS_ROWID.ROWID_CREATE(1, ash.current_obj#, ash.current_file#, ash.current_block#, ash.current_row#)) as "ROWID",
@@ -126,8 +131,8 @@ max(sample_time) as max_stime
 ,substr(LISTAGG(distinct ash.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as PROG_LIST
 -----,LISTAGG(distinct nvl(qc_instance_id ,ash.inst_id)||'#'||nvl(qc_session_id, session_id)||'#'||nvl(qc_session_serial#, session_serial#), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as SID_LIST
 ,substr(LISTAGG(distinct ash.blocking_inst_id||'#'||ash.blocking_session||'#'||ash.blocking_session_serial#, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as BLOKER_LIST
-,LISTAGG(distinct bs.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as BLOKER_program_LIST
-,LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc) as XID_LIST
+,substr(LISTAGG(distinct bs.program, '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as BLOKER_program_LIST
+,substr(LISTAGG(distinct RawToHex(ash.xid), '; ' ON OVERFLOW TRUNCATE '...') WITHIN GROUP (ORDER BY 1 desc), 1, 200) as XID_LIST
   from ash
        left join (select distinct sql_id, dbms_lob.substr(sql_fulltext,100) as sql_text from gv$sqlarea
                   union select sql_id, dbms_lob.substr(sql_text,100) as sql_text from dba_hist_sqltext) hs on hs.sql_id = ash.sql_id--on NVL(ash.sql_id,ash.top_level_sql_id) = hs.sql_id--
@@ -188,6 +193,7 @@ decode(instr(upper('&&4'), 'PARAM'), 0, 'Not Req.',
             when ash.event = 'DFS lock handle' then ash.p1||' '||ash.p2
             when ash.event = 'rdbms ipc reply' then ash.p1text||' '||ash.p1
             when ash.event = 'enq: CU - contention' then upper(lpad(trim(to_char(ash.p2,'xxxxxxxxxxxxxxxx')),16,'0'))||';'||'p3='||ash.p3
+            when ash.p1text = 'name|mode' then chr(bitand(ash.p1,-16777216)/16777215)||'|'||chr(bitand(ash.p1,16711680)/65535)
        end),
 --       o.owner||'.'||o.object_name||'.'||o.subobject_name,
 decode(instr(upper('&&4'), 'OBJ'), 0, 'Not Req.', ash.current_obj#||' '||o.owner||'.'||o.object_name||'.'||o.subobject_name),
